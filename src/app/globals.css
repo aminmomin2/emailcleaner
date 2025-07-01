@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F9FAFB;
+  --foreground: #1E2A38;
+  
+  /* Text colors */
+  --text-main: #1E2A38;
+  --text-secondary: #6B7280;
+  --text-link: #3B82F6;
+  --text-error: #EF4444;
+  --text-success: #10B981;
+  
+  /* Theme colors */
+  --primary: #1E2A38;
+  --accent: #5EF38C;
+  --border: #E5E7EB;
+  --sky: #A3C9F5;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+  --pending: #FACC15;
+  
+  /* Gray colors */
+  --gray-dark: #2E2E2E;
+  --gray-light: #F3F4F6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
