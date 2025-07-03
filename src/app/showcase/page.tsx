@@ -1,30 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Textarea from '@/components/Textarea';
-import Select from '@/components/Select';
-import Checkbox from '@/components/Checkbox';
-import Switch from '@/components/Switch';
-import RadioGroup from '@/components/RadioGroup';
-import Card, { CardBody, CardFooter, CardHeader } from '@/components/Card';
-import Badge from '@/components/Badge';
-import Tag from '@/components/Tag';
-import Avatar from '@/components/Avatar';
-import Alert from '@/components/Alert';
-import Progress from '@/components/Progress';
-import Spinner from '@/components/Spinner';
-import Modal from '@/components/Modal';
-import Tabs from '@/components/Tabs';
-import Tooltip from '@/components/Tooltip';
-import Breadcrumb from '@/components/Breadcrumb';
-import Pagination from '@/components/Pagination';
-import Accordion from '@/components/Accordion';
-import Table from '@/components/Table';
-import Divider from '@/components/Divider';
-import Skeleton from '@/components/Skeleton';
-import List from '@/components/List';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import Select from '@/components/ui/Select';
+import Checkbox from '@/components/ui/Checkbox';
+import Switch from '@/components/ui/Switch';
+import RadioGroup from '@/components/ui/RadioGroup';
+import Card, { CardBody, CardFooter, CardHeader } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Tag from '@/components/ui/Tag';
+import Avatar from '@/components/ui/Avatar';
+import Alert from '@/components/ui/Alert';
+import Progress from '@/components/ui/Progress';
+import Spinner from '@/components/ui/Spinner';
+import Modal from '@/components/ui/Modal';
+
+import Tooltip from '@/components/ui/Tooltip';
+import Breadcrumb from '@/components/ui/Breadcrumb';
+import Pagination from '@/components/ui/Pagination';
+import Accordion from '@/components/ui/Accordion';
+import Table from '@/components/ui/Table';
+import Divider from '@/components/ui/Divider';
+import Skeleton from '@/components/ui/Skeleton';
+import List from '@/components/ui/List';
 
 export default function ShowcasePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,11 +87,11 @@ export default function ShowcasePage() {
   ];
 
   const showcaseTabs = [
-    { id: 'buttons', label: 'Buttons & Forms', content: '' },
-    { id: 'display', label: 'Display', content: '' },
-    { id: 'feedback', label: 'Feedback', content: '' },
-    { id: 'navigation', label: 'Navigation', content: '' },
-    { id: 'data', label: 'Data Display', content: '' },
+    { id: 'buttons', label: 'Buttons & Forms', content: null },
+    { id: 'display', label: 'Display', content: null },
+    { id: 'feedback', label: 'Feedback', content: null },
+    { id: 'navigation', label: 'Navigation', content: null },
+    { id: 'data', label: 'Data Display', content: null },
   ];
 
   return (
@@ -106,14 +106,30 @@ export default function ShowcasePage() {
           </p>
         </div>
 
-        <Tabs
-          tabs={showcaseTabs}
-          value={selectedTab}
-          onChange={setSelectedTab}
-          variant="underline"
-          size="lg"
-          className="mb-8"
-        />
+        <div className="mb-8">
+          <div className="border-b border-[var(--border)] mb-6">
+            <nav className="flex space-x-8" role="tablist">
+              {showcaseTabs.map((tab) => {
+                const isActive = tab.id === selectedTab;
+                return (
+                  <button
+                    key={tab.id}
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`text-lg px-6 py-3 font-medium transition-colors duration-200 cursor-pointer border-b-2 ${
+                      isActive 
+                        ? 'border-[var(--accent)] text-[var(--accent)]' 
+                        : 'border-transparent hover:border-[var(--border)] hover:text-[var(--text-main)]'
+                    }`}
+                    onClick={() => setSelectedTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
 
         {selectedTab === 'buttons' && (
           <div className="space-y-12">
@@ -168,7 +184,8 @@ export default function ShowcasePage() {
                       label="Email Input"
                       type="email"
                       placeholder="Enter your email..."
-                      error="Please enter a valid email"
+                      error={true}
+                      helperText="Please enter a valid email"
                     />
                     <Input
                       label="Disabled Input"
@@ -343,16 +360,16 @@ export default function ShowcasePage() {
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Alerts</h2>
               <div className="space-y-4">
-                <Alert variant="info" title="Information">
+                <Alert type="info" title="Information">
                   This is an informational alert with some important details.
                 </Alert>
-                <Alert variant="success" title="Success">
+                <Alert type="success" title="Success">
                   Your action was completed successfully!
                 </Alert>
-                <Alert variant="warning" title="Warning">
+                <Alert type="warning" title="Warning">
                   Please review your input before proceeding.
                 </Alert>
-                <Alert variant="danger" title="Error">
+                <Alert type="danger" title="Error">
                   Something went wrong. Please try again.
                 </Alert>
               </div>
@@ -365,10 +382,10 @@ export default function ShowcasePage() {
                 <Card className="p-6">
                   <h3 className="text-lg font-semibold mb-4">Progress Bars</h3>
                   <div className="space-y-4">
-                    <Progress value={25} label="25%" />
-                    <Progress value={50} label="50%" />
-                    <Progress value={75} label="75%" />
-                    <Progress value={100} label="Complete" />
+                    <Progress value={25} showLabel />
+                    <Progress value={50} showLabel />
+                    <Progress value={75} showLabel />
+                    <Progress value={100} showLabel />
                   </div>
                 </Card>
                 <Card className="p-6">
@@ -439,10 +456,10 @@ export default function ShowcasePage() {
                   <Tooltip content="This is a tooltip">
                     <Button variant="outline">Hover me</Button>
                   </Tooltip>
-                  <Tooltip content="Tooltip on the right" placement="right">
+                  <Tooltip content="Tooltip on the right" position="right">
                     <Button variant="outline">Right tooltip</Button>
                   </Tooltip>
-                  <Tooltip content="Tooltip on the bottom" placement="bottom">
+                  <Tooltip content="Tooltip on the bottom" position="bottom">
                     <Button variant="outline">Bottom tooltip</Button>
                   </Tooltip>
                 </div>

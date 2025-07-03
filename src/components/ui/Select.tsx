@@ -102,7 +102,7 @@ const Select: React.FC<SelectProps> = ({
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <svg
-            className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 ml-2 text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

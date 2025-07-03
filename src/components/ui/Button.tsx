@@ -2,8 +2,8 @@ import React from 'react';
 
 interface ButtonProps {
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'accent' | 'outline' | 'danger' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'accent' | 'outline' | 'danger' | 'ghost' | 'transparent' | 'neutral';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -30,14 +30,17 @@ const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-[var(--gray-light)] text-[var(--primary)] border border-[var(--border)] hover:bg-[var(--gray-light)]/90 active:bg-[var(--gray-light)]/80',
     accent: 'bg-[var(--accent)] text-[var(--primary)] hover:bg-[var(--accent)]/90 active:bg-[var(--accent)]/80',
     outline: 'bg-gray-light text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white active:bg-[var(--primary)]/80 active:text-white',
+    transparent: 'bg-transparent text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-transparent active:bg-transparent',
     ghost: 'bg-transparent text-[var(--primary)] hover:bg-[var(--accent)] hover:text-[var(--primary)]/90 active:bg-[var(--accent)]/80 active:text-[var(--primary)]',
     danger: 'bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 active:bg-[var(--danger)]/80',
+    neutral: 'text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--gray-light)]',
   };
   
   const sizeClasses = {
     sm: 'px-4 py-2 text-sm',
     md: 'px-5 py-2.5 text-base',
     lg: 'px-6 py-3 text-lg',
+    icon: 'p-2',
   };
   
   const widthClass = fullWidth ? 'w-full' : '';
