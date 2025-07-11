@@ -6,6 +6,7 @@ import Switch from '@/components/ui/Switch';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TopbarProps {
   onSearch?: (query: string) => void;
@@ -26,15 +27,15 @@ const Topbar: React.FC<TopbarProps> = ({
   onSearch,
   onQuickCommand,
   onToggleAI,
-  onProfileClick,
   onNotificationsClick,
-  user = { name: 'User', email: 'user@example.com' },
   notificationCount = 0,
   aiEnabled = true,
 }) => {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [quickCommand, setQuickCommand] = useState('');
   const [isAIPaused, setIsAIPaused] = useState(!aiEnabled);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,29 +159,62 @@ const Topbar: React.FC<TopbarProps> = ({
             </Button>
 
             {/* User Profile */}
-            <Button
-              onClick={onProfileClick}
-              variant="neutral"
-              size="icon"
-              className="flex items-center space-x-3 p-2 hover:bg-[var(--gray-light)] rounded-lg transition-colors"
-            >
-              <Avatar
-                src={user.avatar}
-                fallback={user.name}
-                size="md"
-              />
-              <div className="hidden lg:block text-left">
-                <div className="text-sm font-medium text-[var(--text-main)]">
-                  {user.name}
-                </div>
-                <div className="text-xs text-[var(--text-secondary)]">
-                  {user.email}
+            {isLoading ? (
+              <div className="flex items-center space-x-3 p-2">
+                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="hidden lg:block">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-32 mt-1"></div>
                 </div>
               </div>
-              <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </Button>
+            ) : isAuthenticated && user ? (
+              <div className="relative">
+                <Button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  variant="neutral"
+                  size="icon"
+                  className="flex items-center space-x-3 p-2 hover:bg-[var(--gray-light)] rounded-lg transition-colors"
+                >
+                  <Avatar
+                    src={user.image || undefined}
+                    fallback={user.name || 'User'}
+                    size="md"
+                  />
+                  <div className="hidden lg:block text-left">
+                    <div className="text-sm font-medium text-[var(--text-main)]">
+                      {user.name || 'User'}
+                    </div>
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      {user.email}
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Button>
+                
+                {showProfileMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={logout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button
+                onClick={() => window.location.href = '/auth/signin'}
+                variant="primary"
+                size="sm"
+              >
+                Sign in
+              </Button>
+            )}
           </div>
         </div>
       </div>

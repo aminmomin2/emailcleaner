@@ -1,0 +1,105 @@
+import bcrypt from 'bcryptjs'
+import { UserService } from './userService'
+import { executeSingleQuery } from '../database'
+
+export interface CredentialsUser {
+  id: string
+  email: string
+  name?: string | null
+  image?: string | null
+  emailVerified?: Date | null
+}
+
+export class CredentialsService {
+  // Register a new user with email/password
+  static async registerUser(email: string, password: string, name?: string): Promise<CredentialsUser> {
+    // Check if user already exists
+    const existingUser = await UserService.getUserByEmail(email)
+    if (existingUser) {
+      throw new Error('A user with this email already exists')
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    // Create the user (email will be automatically verified for now)
+    const user = await UserService.createUser({
+      email,
+      name,
+      email_verified: new Date().toISOString(), // Auto-verify for now
+    })
+
+    // Store the hashed password in a separate table
+    await this.storePassword(user.id, hashedPassword)
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      emailVerified: user.email_verified ? new Date(user.email_verified) : null,
+    }
+  }
+
+  // Validate user credentials
+  static async validateCredentials(email: string, password: string): Promise<CredentialsUser | null> {
+    // Find user by email
+    const user = await UserService.getUserByEmail(email)
+    if (!user) {
+      return null
+    }
+
+    // Get the stored password hash
+    const storedPassword = await this.getPassword(user.id)
+    if (!storedPassword) {
+      return null
+    }
+
+    // Compare passwords
+    const isValid = await bcrypt.compare(password, storedPassword)
+    if (!isValid) {
+      return null
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      emailVerified: user.email_verified ? new Date(user.email_verified) : null,
+    }
+  }
+
+  // Store password hash
+  private static async storePassword(userId: string, hashedPassword: string): Promise<void> {
+    const query = `
+      INSERT INTO user_passwords (user_id, password_hash)
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE password_hash = ?
+    `
+    await executeSingleQuery(query, [userId, hashedPassword, hashedPassword])
+  }
+
+  // Get password hash
+  private static async getPassword(userId: string): Promise<string | null> {
+    const query = `
+      SELECT password_hash
+      FROM user_passwords
+      WHERE user_id = ?
+    `
+    const result = await executeSingleQuery(query, [userId]) as any
+    return result?.[0]?.password_hash || null
+  }
+
+  // Update password
+  static async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await this.storePassword(userId, hashedPassword)
+  }
+
+  // Delete password (when user is deleted)
+  static async deletePassword(userId: string): Promise<void> {
+    const query = 'DELETE FROM user_passwords WHERE user_id = ?'
+    await executeSingleQuery(query, [userId])
+  }
+} 
