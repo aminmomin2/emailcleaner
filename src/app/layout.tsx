@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
+import CustomApolloProvider from '@/components/providers/ApolloProvider';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,11 +30,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SessionProvider>
-          <ConditionalLayout>
-            {children}
-          </ConditionalLayout>
-        </SessionProvider>
+        <CustomApolloProvider>
+          <SessionProvider>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+          </SessionProvider>
+        </CustomApolloProvider>
       </body>
     </html>
   );

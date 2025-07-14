@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env ts-node
 
-const { initializeDatabase } = require('../dist/src/app/api/lib/init-db');
+const { initializeDatabase } = require('../src/app/api/lib/init-db');
 
 async function main() {
   try {

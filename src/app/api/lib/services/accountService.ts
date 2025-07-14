@@ -1,4 +1,5 @@
 import { executeQuery, executeSingleQuery, getSingleRow } from '../database';
+import { encrypt, decrypt } from '../utils/crypto';
 
 export interface Account {
   id: string;
@@ -54,7 +55,13 @@ export class AccountService {
       FROM accounts
       ORDER BY created_at DESC
     `;
-    return await executeQuery<Account>(query);
+    const accounts = await executeQuery<Account>(query);
+    // Decrypt sensitive fields
+    return accounts.map(account => ({
+      ...account,
+      refresh_token: account.refresh_token ? decrypt(account.refresh_token) : null,
+      access_token: account.access_token ? decrypt(account.access_token) : null,
+    }));
   }
 
   // Get account by ID
@@ -66,7 +73,13 @@ export class AccountService {
       FROM accounts
       WHERE id = ?
     `;
-    return await getSingleRow<Account>(query, [id]);
+    const account = await getSingleRow<Account>(query, [id]);
+    if (!account) return null;
+    return {
+      ...account,
+      refresh_token: account.refresh_token ? decrypt(account.refresh_token) : null,
+      access_token: account.access_token ? decrypt(account.access_token) : null,
+    };
   }
 
   // Get accounts by user ID
@@ -79,7 +92,13 @@ export class AccountService {
       WHERE user_id = ?
       ORDER BY created_at DESC
     `;
-    return await executeQuery<Account>(query, [userId]);
+    const accounts = await executeQuery<Account>(query, [userId]);
+    // Decrypt sensitive fields
+    return accounts.map(account => ({
+      ...account,
+      refresh_token: account.refresh_token ? decrypt(account.refresh_token) : null,
+      access_token: account.access_token ? decrypt(account.access_token) : null,
+    }));
   }
 
   // Create a new account
@@ -99,8 +118,8 @@ export class AccountService {
       input.type,
       input.provider,
       input.provider_account_id,
-      input.refresh_token || null,
-      input.access_token || null,
+      input.refresh_token ? encrypt(input.refresh_token) : null,
+      input.access_token ? encrypt(input.access_token) : null,
       input.expires_at || null,
       input.token_type || null,
       input.scope || null,
@@ -137,11 +156,11 @@ export class AccountService {
     }
     if (input.refresh_token !== undefined) {
       updateFields.push('refresh_token = ?');
-      values.push(input.refresh_token);
+      values.push(input.refresh_token ? encrypt(input.refresh_token) : null);
     }
     if (input.access_token !== undefined) {
       updateFields.push('access_token = ?');
-      values.push(input.access_token);
+      values.push(input.access_token ? encrypt(input.access_token) : null);
     }
     if (input.expires_at !== undefined) {
       updateFields.push('expires_at = ?');

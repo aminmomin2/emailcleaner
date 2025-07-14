@@ -1,6 +1,32 @@
 'use client';
 
 import Container from "@/components/ui/Container";
+import { gql, useQuery } from "@apollo/client";
+
+const GET_USERS = gql`
+  query {
+    users {
+      id
+      name
+      email
+    }
+  }
+`;
+
+function UsersList() {
+  const { data, loading, error } = useQuery(GET_USERS);
+
+  if (loading) return <div>Loading users...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <ul>
+      {data.users.map((user: any) => (
+        <li key={user.id}>{user.name} ({user.email})</li>
+      ))}
+    </ul>
+  );
+}
 
 export default function Home() {
   return (
@@ -9,6 +35,8 @@ export default function Home() {
         Welcome to OmniDo
       </h1>
       
+      <UsersList />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Dashboard Cards */}
         <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--border)]">

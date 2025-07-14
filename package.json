@@ -4,18 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && tsc",
     "start": "next start",
     "lint": "next lint",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "tsc && node scripts/init-db.js",
+    "check-db": "node scripts/check-db.js"
   },
   "dependencies": {
+    "@apollo/client": "^3.13.8",
     "@apollo/server": "^4.12.2",
     "@apollo/server-plugin-landing-page-graphql-playground": "^4.0.1",
     "@as-integrations/next": "^3.2.0",
     "@graphql-tools/utils": "^10.8.6",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.0",
     "google-auth-library": "^10.1.0",
     "graphql": "^16.11.0",
     "graphql-tag": "^2.12.6",
@@ -35,6 +38,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

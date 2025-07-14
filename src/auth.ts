@@ -1,6 +1,5 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import CredentialsProvider from "next-auth/providers/credentials"
 import { CustomAdapter } from "./app/api/lib/auth/adapters"
 
 export const { auth, handlers } = NextAuth({
@@ -16,34 +15,6 @@ export const { auth, handlers } = NextAuth({
         },
       },
     }),
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        try {
-          // Import the credentials service
-          const { CredentialsService } = await import('./app/api/lib/services/credentialsService')
-          
-          // Validate credentials
-          const user = await CredentialsService.validateCredentials(
-            credentials.email,
-            credentials.password
-          )
-          
-          return user
-        } catch (error) {
-          console.error('Credentials validation error:', error)
-          return null
-        }
-      }
-    }),
   ],
   session: {
     strategy: "database",
@@ -51,35 +22,22 @@ export const { auth, handlers } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      // If user is signing in with OAuth (like Google), mark them as verified
-      if (account?.provider !== "credentials" && user.email) {
-        // OAuth providers have already verified the email, so we can trust it
-        // The adapter will handle setting email_verified to the current timestamp
-        return true
+      console.log('🟠 [NEXTAUTH] signIn callback called for user:', user.email);
+      if (account?.provider === "google") {
+        user.emailVerified = new Date()
+        console.log('✅ [NEXTAUTH] Google user - email verified');
       }
-      
-      // For credentials-based signup, allow all users (email verification disabled)
-      if (account?.provider === "credentials") {
-        // Email verification is commented out for now
-        return true
-      }
-      
+      console.log('✅ [NEXTAUTH] signIn callback returning true');
       return true
     },
     async session({ session, user }) {
+      console.log('🟠 [NEXTAUTH] session callback called for user:', user.email);
       if (session.user) {
         session.user.id = user.id
-        // Add email verification status to session
         session.user.emailVerified = user.emailVerified
       }
+      console.log('✅ [NEXTAUTH] session callback returning session for user:', user.email);
       return session
-    },
-    async jwt({ token, user, account }) {
-      // If this is a new sign-in with OAuth, mark email as verified
-      if (account && account.provider !== "credentials" && user) {
-        token.emailVerified = new Date()
-      }
-      return token
     }
   },
   pages: {

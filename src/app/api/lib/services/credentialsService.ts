@@ -22,11 +22,11 @@ export class CredentialsService {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create the user (email will be automatically verified for now)
+    // Create the user (email will NOT be verified for credentials users)
     const user = await UserService.createUser({
       email,
       name,
-      email_verified: new Date().toISOString(), // Auto-verify for now
+      email_verified: undefined, // Credentials users are not automatically verified
     })
 
     // Store the hashed password in a separate table
@@ -43,24 +43,35 @@ export class CredentialsService {
 
   // Validate user credentials
   static async validateCredentials(email: string, password: string): Promise<CredentialsUser | null> {
+    console.log("🟢 [CREDENTIALS] Validating credentials for email:", email)
+    
     // Find user by email
     const user = await UserService.getUserByEmail(email)
     if (!user) {
+      console.log("❌ [CREDENTIALS] User not found for email:", email)
       return null
     }
+
+    console.log("✅ [CREDENTIALS] User found:", { id: user.id, email: user.email, name: user.name })
 
     // Get the stored password hash
     const storedPassword = await this.getPassword(user.id)
     if (!storedPassword) {
+      console.log("❌ [CREDENTIALS] No password found for user:", user.id)
       return null
     }
 
     // Compare passwords
     const isValid = await bcrypt.compare(password, storedPassword)
     if (!isValid) {
+      console.log("❌ [CREDENTIALS] Invalid password for user:", user.id)
       return null
     }
 
+    console.log("✅ [CREDENTIALS] Credentials validated successfully for user:", user.id)
+
+    // For credentials users, email should not be verified
+    // But we return the actual database value in case it was set by other means
     return {
       id: user.id,
       email: user.email,
@@ -87,7 +98,7 @@ export class CredentialsService {
       FROM user_passwords
       WHERE user_id = ?
     `
-    const result = await executeSingleQuery(query, [userId]) as any
+    const result = await executeSingleQuery(query, [userId]) as { password_hash?: string }[]
     return result?.[0]?.password_hash || null
   }
 

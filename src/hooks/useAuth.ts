@@ -2,13 +2,15 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useMe } from "@/hooks/useGraphQLAuth"
 
 export function useAuth() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
+  const { data: meData, loading: meLoading, error: meError, refetch: refetchMe } = useMe()
 
   const isAuthenticated = status === "authenticated"
-  const isLoading = status === "loading"
+  const isLoading = status === "loading" || meLoading
 
   const login = async (provider?: string) => {
     try {
@@ -42,12 +44,14 @@ export function useAuth() {
 
   return {
     session,
-    user: session?.user,
+    user: meData?.me,
     isAuthenticated,
     isLoading,
     login,
     logout,
     requireAuth,
     update,
+    meError,
+    refetchMe,
   }
 } 

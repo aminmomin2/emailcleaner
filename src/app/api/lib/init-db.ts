@@ -5,7 +5,7 @@ export async function initializeDatabase() {
     console.log('Creating users table...');
     await executeSingleQuery(`
       CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(255) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(255),
         email VARCHAR(255) UNIQUE NOT NULL,
         email_verified DATETIME,
@@ -18,8 +18,8 @@ export async function initializeDatabase() {
     console.log('Creating accounts table...');
     await executeSingleQuery(`
       CREATE TABLE IF NOT EXISTS accounts (
-        id VARCHAR(255) PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
         type VARCHAR(255) NOT NULL,
         provider VARCHAR(255) NOT NULL,
         provider_account_id VARCHAR(255) NOT NULL,
@@ -27,22 +27,22 @@ export async function initializeDatabase() {
         access_token TEXT,
         expires_at BIGINT,
         token_type VARCHAR(255),
-        scope VARCHAR(255),
+        scope TEXT,
         id_token TEXT,
         session_state VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        UNIQUE KEY provider_account_id (provider, provider_account_id)
+        UNIQUE KEY unique_provider_account (provider, provider_account_id)
       )
     `);
 
     console.log('Creating sessions table...');
     await executeSingleQuery(`
       CREATE TABLE IF NOT EXISTS sessions (
-        id VARCHAR(255) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         session_token VARCHAR(255) UNIQUE NOT NULL,
-        user_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
         expires DATETIME NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -65,13 +65,11 @@ export async function initializeDatabase() {
     console.log('Creating user_passwords table...');
     await executeSingleQuery(`
       CREATE TABLE IF NOT EXISTS user_passwords (
-        id VARCHAR(255) PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
+        user_id VARCHAR(36) PRIMARY KEY,
         password_hash VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        UNIQUE KEY user_id (user_id)
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 

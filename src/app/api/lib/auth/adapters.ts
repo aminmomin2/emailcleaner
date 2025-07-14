@@ -6,16 +6,18 @@ import { CredentialsService } from "../services/credentialsService"
 import { toMySQLDateTime } from "../utils/datetime"
 
 export function CustomAdapter(): Adapter {
+  console.log("🔵 [ADAPTER] CustomAdapter initialized");
   return {
     async createUser(user) {
       try {
-        // Check if this is an OAuth user (has emailVerified set)
-        const isOAuthUser = user.emailVerified !== undefined
+        // Check if email is verified based on the user object passed from NextAuth callbacks
+        // NextAuth callbacks will set emailVerified for Google users and null for credentials users
+        const isEmailVerified = user.emailVerified !== undefined && user.emailVerified !== null
         
         const createdUser = await UserService.createUser({
           name: user.name || undefined,
           email: user.email,
-          email_verified: isOAuthUser ? new Date().toISOString() : null, // Mark OAuth users as verified
+          email_verified: isEmailVerified ? new Date().toISOString() : undefined, // Set based on provider
           image: user.image || undefined,
         })
         
@@ -184,12 +186,22 @@ export function CustomAdapter(): Adapter {
     },
 
     async createSession(session) {
+      console.log("🔵 [ADAPTER] createSession method called!");
       try {
+        console.log("🔵 [ADAPTER] createSession called with:", {
+          sessionToken: session.sessionToken,
+          userId: session.userId,
+          expires: session.expires,
+          expiresMySQL: toMySQLDateTime(session.expires)
+        })
+        
         const createdSession = await SessionService.createSession({
           session_token: session.sessionToken,
           user_id: session.userId,
           expires: toMySQLDateTime(session.expires),
         })
+        
+        console.log("✅ [ADAPTER] Session created successfully:", createdSession)
         
         return {
           sessionToken: createdSession.session_token,
@@ -197,17 +209,20 @@ export function CustomAdapter(): Adapter {
           expires: new Date(createdSession.expires),
         } as AdapterSession
       } catch (error) {
-        console.error("Error creating session:", error)
+        console.error("❌ [ADAPTER] Error creating session:", error)
         throw error
       }
     },
 
     async getSessionAndUser(sessionToken) {
+      console.log("🔵 [ADAPTER] getSessionAndUser called with token:", sessionToken.substring(0, 20) + "...");
       try {
         const session = await SessionService.getSessionByToken(sessionToken)
+        console.log("🔵 [ADAPTER] getSessionAndUser - session found:", !!session);
         if (!session) return null
         
         const user = await UserService.getUserById(session.user_id)
+        console.log("🔵 [ADAPTER] getSessionAndUser - user found:", !!user);
         if (!user) return null
         
         return {
@@ -225,7 +240,7 @@ export function CustomAdapter(): Adapter {
           } as AdapterUser,
         }
       } catch (error) {
-        console.error("Error getting session and user:", error)
+        console.error("❌ [ADAPTER] Error getting session and user:", error)
         return null
       }
     },

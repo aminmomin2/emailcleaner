@@ -64,23 +64,35 @@ export class SessionService {
 
   // Create a new session
   static async createSession(input: CreateSessionInput): Promise<Session> {
+    console.log('🟡 [SESSION SERVICE] createSession called with:', input);
+    
     // Generate a UUID for the session ID
     const sessionId = crypto.randomUUID();
+    console.log('🟡 [SESSION SERVICE] Generated session ID:', sessionId);
     
     const query = `
       INSERT INTO sessions (id, session_token, user_id, expires)
       VALUES (?, ?, ?, ?)
     `;
     
-    await executeSingleQuery(query, [
-      sessionId,
-      input.session_token,
-      input.user_id,
-      input.expires,
-    ]);
+    console.log('🟡 [SESSION SERVICE] Executing query with params:', [sessionId, input.session_token, input.user_id, input.expires]);
+    
+    try {
+      await executeSingleQuery(query, [
+        sessionId,
+        input.session_token,
+        input.user_id,
+        input.expires,
+      ]);
+      console.log('✅ [SESSION SERVICE] Session insert successful');
+    } catch (error) {
+      console.error('❌ [SESSION SERVICE] Session insert failed:', error);
+      throw error;
+    }
 
     // Get the created session
     const createdSession = await this.getSessionById(sessionId);
+    console.log('🟡 [SESSION SERVICE] Retrieved created session:', createdSession);
     
     if (!createdSession) {
       throw new Error('Failed to create session');
