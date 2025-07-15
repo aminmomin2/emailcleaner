@@ -11,6 +11,8 @@ export const typeDefs = gql`
     updatedAt: String!
     accounts: [Account!]!
     sessions: [Session!]!
+    emails: [UserEmail!]!
+    calendarEvents: [UserCalendarEvent!]!
   }
 
   type Account {
@@ -41,6 +43,45 @@ export const typeDefs = gql`
     user: User!
   }
 
+  type UserEmail {
+    id: ID!
+    userId: ID!
+    providerEmailId: String!
+    threadId: String
+    fromEmail: String
+    toEmails: String
+    ccEmails: String
+    bccEmails: String
+    subject: String
+    snippet: String
+    internalDate: String
+    receivedAt: String
+    isRead: Boolean
+    labelIds: String
+    status: String
+    rawBodyHash: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type UserCalendarEvent {
+    id: ID!
+    userId: ID!
+    providerEventId: String!
+    calendarId: String!
+    summary: String
+    description: String
+    startTime: String!
+    endTime: String!
+    location: String
+    attendees: String
+    status: String!
+    htmlLink: String
+    ingestedAt: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
   type Query {
     users: [User!]!
     user(id: ID!): User
@@ -54,6 +95,14 @@ export const typeDefs = gql`
     sessions: [Session!]!
     session(id: ID!): Session
     sessionsByUser(userId: ID!): [Session!]!
+
+    userEmails: [UserEmail!]!
+    userEmail(id: ID!): UserEmail
+    userEmailsByUser(userId: ID!): [UserEmail!]!
+
+    userCalendarEvents: [UserCalendarEvent!]!
+    userCalendarEvent(id: ID!): UserCalendarEvent
+    userCalendarEventsByUser(userId: ID!): [UserCalendarEvent!]!
   }
 
   type Mutation {
@@ -71,6 +120,14 @@ export const typeDefs = gql`
     createSession(input: CreateSessionInput!): Session!
     updateSession(id: ID!, input: UpdateSessionInput!): Session!
     deleteSession(id: ID!): Boolean!
+
+    createUserEmail(input: CreateUserEmailInput!): UserEmail!
+    updateUserEmail(id: ID!, input: UpdateUserEmailInput!): UserEmail!
+    deleteUserEmail(id: ID!): Boolean!
+
+    createUserCalendarEvent(input: CreateUserCalendarEventInput!): UserCalendarEvent!
+    updateUserCalendarEvent(id: ID!, input: UpdateUserCalendarEventInput!): UserCalendarEvent!
+    deleteUserCalendarEvent(id: ID!): Boolean!
   }
 
   input CreateUserInput {
@@ -123,5 +180,62 @@ export const typeDefs = gql`
   input UpdateSessionInput {
     sessionToken: String
     expires: String
+  }
+
+  input CreateUserEmailInput {
+    userId: ID!
+    providerEmailId: String!
+    threadId: String
+    fromEmail: String
+    toEmails: String
+    ccEmails: String
+    bccEmails: String
+    subject: String
+    snippet: String
+    internalDate: String
+    isRead: Boolean
+    labelIds: String
+    status: String
+    rawBodyHash: String
+  }
+
+  input UpdateUserEmailInput {
+    threadId: String
+    fromEmail: String
+    toEmails: String
+    ccEmails: String
+    bccEmails: String
+    subject: String
+    snippet: String
+    internalDate: String
+    isRead: Boolean
+    labelIds: String
+    status: String
+    rawBodyHash: String
+  }
+
+  input CreateUserCalendarEventInput {
+    userId: ID!
+    providerEventId: String!
+    calendarId: String!
+    summary: String
+    description: String
+    startTime: String!
+    endTime: String!
+    location: String
+    attendees: String
+    status: String!
+    htmlLink: String
+  }
+
+  input UpdateUserCalendarEventInput {
+    summary: String
+    description: String
+    startTime: String
+    endTime: String
+    location: String
+    attendees: String
+    status: String
+    htmlLink: String
   }
 `; 

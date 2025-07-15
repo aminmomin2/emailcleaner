@@ -101,9 +101,18 @@ export class UserService {
       }
 
       return createdUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for duplicate email error
-      if (error.code === 'ER_DUP_ENTRY' && error.message.includes('users.email')) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        'message' in error &&
+        typeof (error as { code?: unknown }).code === 'string' &&
+        typeof (error as { message?: unknown }).message === 'string' &&
+        (error as { code: string }).code === 'ER_DUP_ENTRY' &&
+        (error as { message: string }).message.includes('users.email')
+      ) {
         throw new Error('A user with this email already exists.');
       }
       console.error('Error in createUser:', error);
@@ -114,7 +123,7 @@ export class UserService {
   // Update user
   static async updateUser(id: string, input: UpdateUserInput): Promise<User | null> {
     const updateFields: string[] = [];
-    const values: any[] = [];
+    const values: (string | null)[] = [];
 
     if (input.name !== undefined) {
       updateFields.push('name = ?');
@@ -154,6 +163,133 @@ export class UserService {
   static async deleteUser(id: string): Promise<boolean> {
     const query = 'DELETE FROM users WHERE id = ?';
     const result = await executeSingleQuery(query, [id]);
-    return (result as any).affectedRows > 0;
+    // Use a type guard for affectedRows
+    if (typeof result === 'object' && result !== null && 'affectedRows' in result && typeof (result as { affectedRows?: unknown }).affectedRows === 'number') {
+      return (result as { affectedRows: number }).affectedRows > 0;
+    }
+    return false;
+  }
+}
+
+// --- UserEmail Service ---
+export interface UserEmail {
+  id: string;
+  user_id: string;
+  provider_email_id: string;
+  thread_id?: string | null;
+  from_email?: string | null;
+  to_emails?: string | null;
+  cc_emails?: string | null;
+  bcc_emails?: string | null;
+  subject?: string | null;
+  snippet?: string | null;
+  internal_date?: string | null;
+  received_at?: string | null;
+  is_read?: boolean;
+  label_ids?: string | null;
+  status?: 'active' | 'archived' | 'trashed' | 'deleted';
+  raw_body_hash?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export class UserEmailService {
+  static async getAllUserEmails(): Promise<UserEmail[]> {
+    const query = `SELECT * FROM user_emails ORDER BY received_at DESC`;
+    return await executeQuery<UserEmail>(query);
+  }
+  static async getUserEmailById(id: string): Promise<UserEmail | null> {
+    const query = `SELECT * FROM user_emails WHERE id = ?`;
+    return await getSingleRow<UserEmail>(query, [id]);
+  }
+  static async getUserEmailsByUserId(userId: string): Promise<UserEmail[]> {
+    const query = `SELECT * FROM user_emails WHERE user_id = ? ORDER BY received_at DESC`;
+    return await executeQuery<UserEmail>(query, [userId]);
+  }
+  static async createUserEmail(input: Omit<UserEmail, 'id' | 'created_at' | 'updated_at' | 'received_at'>): Promise<UserEmail> {
+    const id = crypto.randomUUID();
+    const query = `INSERT INTO user_emails (id, user_id, provider_email_id, thread_id, from_email, to_emails, cc_emails, bcc_emails, subject, snippet, internal_date, is_read, label_ids, status, raw_body_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    await executeSingleQuery(query, [id, input.user_id, input.provider_email_id, input.thread_id || null, input.from_email || null, input.to_emails || null, input.cc_emails || null, input.bcc_emails || null, input.subject || null, input.snippet || null, input.internal_date || null, input.is_read || false, input.label_ids || null, input.status || 'active', input.raw_body_hash || null]);
+    const created = await this.getUserEmailById(id);
+    if (!created) throw new Error('Failed to create user email');
+    return created;
+  }
+  static async updateUserEmail(id: string, input: Partial<Omit<UserEmail, 'id' | 'created_at' | 'updated_at' | 'received_at'>>): Promise<UserEmail | null> {
+    const updateFields: string[] = [];
+    const values: unknown[] = [];
+    for (const key in input) {
+      updateFields.push(`${key} = ?`);
+      values.push((input as Record<string, unknown>)[key]);
+    }
+    if (updateFields.length === 0) return await this.getUserEmailById(id);
+    values.push(id);
+    const query = `UPDATE user_emails SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await executeSingleQuery(query, values);
+    return await this.getUserEmailById(id);
+  }
+  static async deleteUserEmail(id: string): Promise<boolean> {
+    const query = `DELETE FROM user_emails WHERE id = ?`;
+    await executeSingleQuery(query, [id]);
+    return true;
+  }
+}
+
+// --- UserCalendarEvent Service ---
+export interface UserCalendarEvent {
+  id: string;
+  user_id: string;
+  provider_event_id: string;
+  calendar_id: string;
+  summary?: string | null;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+  attendees?: string | null;
+  status: 'confirmed' | 'tentative' | 'cancelled';
+  html_link?: string | null;
+  ingested_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export class UserCalendarEventService {
+  static async getAllUserCalendarEvents(): Promise<UserCalendarEvent[]> {
+    const query = `SELECT * FROM user_calendar_events ORDER BY start_time DESC`;
+    return await executeQuery<UserCalendarEvent>(query);
+  }
+  static async getUserCalendarEventById(id: string): Promise<UserCalendarEvent | null> {
+    const query = `SELECT * FROM user_calendar_events WHERE id = ?`;
+    return await getSingleRow<UserCalendarEvent>(query, [id]);
+  }
+  static async getUserCalendarEventsByUserId(userId: string): Promise<UserCalendarEvent[]> {
+    const query = `SELECT * FROM user_calendar_events WHERE user_id = ? ORDER BY start_time DESC`;
+    return await executeQuery<UserCalendarEvent>(query, [userId]);
+  }
+  static async createUserCalendarEvent(input: Omit<UserCalendarEvent, 'id' | 'created_at' | 'updated_at' | 'ingested_at'>): Promise<UserCalendarEvent> {
+    const id = crypto.randomUUID();
+    const query = `INSERT INTO user_calendar_events (id, user_id, provider_event_id, calendar_id, summary, description, start_time, end_time, location, attendees, status, html_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    await executeSingleQuery(query, [id, input.user_id, input.provider_event_id, input.calendar_id, input.summary || null, input.description || null, input.start_time, input.end_time, input.location || null, input.attendees || null, input.status, input.html_link || null]);
+    const created = await this.getUserCalendarEventById(id);
+    if (!created) throw new Error('Failed to create user calendar event');
+    return created;
+  }
+  static async updateUserCalendarEvent(id: string, input: Partial<Omit<UserCalendarEvent, 'id' | 'created_at' | 'updated_at' | 'ingested_at'>>): Promise<UserCalendarEvent | null> {
+    const updateFields: string[] = [];
+    const values: unknown[] = [];
+    for (const key in input) {
+      updateFields.push(`${key} = ?`);
+      values.push((input as Record<string, unknown>)[key]);
+    }
+    if (updateFields.length === 0) return await this.getUserCalendarEventById(id);
+    values.push(id);
+    const query = `UPDATE user_calendar_events SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await executeSingleQuery(query, values);
+    return await this.getUserCalendarEventById(id);
+  }
+  static async deleteUserCalendarEvent(id: string): Promise<boolean> {
+    const query = `DELETE FROM user_calendar_events WHERE id = ?`;
+    await executeSingleQuery(query, [id]);
+    return true;
   }
 } 

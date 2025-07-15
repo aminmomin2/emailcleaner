@@ -13,6 +13,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL COMMENT 'User''s primary email address, typically from the OAuth provider (e.g., Google)',
     email_verified DATETIME NULL COMMENT 'Timestamp when the email was verified (e.g., via OAuth login)',
     image TEXT NULL COMMENT 'URL to user''s profile picture from the OAuth provider',
+    last_synced_at DATETIME NULL COMMENT 'Last time user data was polled for new emails/events',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when the user record was created',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the user record was last updated'
 );
@@ -70,4 +71,67 @@ CREATE TABLE sessions (
 
     -- Index for efficient lookup of sessions by user_id
     INDEX idx_sessions_user_id (user_id)
+);
+
+-- -----------------------------------------------------
+-- Table `user_emails`
+-- Stores basic metadata about ingested user emails.
+-- This is part of the initial data ingestion for AI context.
+-- -----------------------------------------------------
+CREATE TABLE user_emails (
+    id VARCHAR(36) PRIMARY KEY COMMENT 'Your internal unique ID for the email (UUID)',
+    user_id VARCHAR(36) NOT NULL COMMENT 'Foreign key linking to the users table',
+    provider_email_id VARCHAR(255) NOT NULL COMMENT 'The email''s ID from Google/Outlook (e.g., Gmail''s message ID)',
+    thread_id VARCHAR(255) NULL COMMENT 'The thread ID from the provider',
+    from_email VARCHAR(255) NULL COMMENT 'Sender''s email address',
+    to_emails JSON NULL COMMENT 'JSON array of recipient email addresses',
+    cc_emails JSON NULL COMMENT 'JSON array of CC recipient email addresses',
+    bcc_emails JSON NULL COMMENT 'JSON array of BCC recipient email addresses',
+    subject VARCHAR(500) NULL COMMENT 'Email subject line',
+    snippet TEXT NULL COMMENT 'A short preview/snippet of the email body',
+    internal_date DATETIME NULL COMMENT 'The internal date/time from the email provider',
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when your system ingested this email',
+    is_read BOOLEAN DEFAULT FALSE COMMENT 'Whether the email is marked as read',
+    label_ids JSON NULL COMMENT 'JSON array of label IDs (e.g., ''INBOX'', ''SENT'', ''STARRED'')',
+    status ENUM('active', 'archived', 'trashed', 'deleted') DEFAULT 'active' COMMENT 'Current status of the email in the mailbox',
+    raw_body_hash VARCHAR(64) NULL COMMENT 'SHA256 hash of the full email body to detect changes (optional)',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_user_provider_email UNIQUE (user_id, provider_email_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_emails_user_id (user_id),
+    INDEX idx_user_emails_provider_id (provider_email_id),
+    INDEX idx_user_emails_thread_id (thread_id),
+    INDEX idx_user_emails_internal_date (internal_date)
+);
+
+-- -----------------------------------------------------
+-- Table `user_calendar_events`
+-- Stores basic metadata about ingested user calendar events.
+-- This is part of the initial data ingestion for AI context.
+-- -----------------------------------------------------
+CREATE TABLE user_calendar_events (
+    id VARCHAR(36) PRIMARY KEY COMMENT 'Your internal unique ID for the event (UUID)',
+    user_id VARCHAR(36) NOT NULL COMMENT 'Foreign key linking to the users table',
+    provider_event_id VARCHAR(255) NOT NULL COMMENT 'The event''s ID from Google/Outlook',
+    calendar_id VARCHAR(255) NOT NULL COMMENT 'The ID of the calendar it belongs to',
+    summary VARCHAR(500) NULL COMMENT 'Event title/summary',
+    description TEXT NULL COMMENT 'Event description',
+    start_time DATETIME NOT NULL COMMENT 'Event start time',
+    end_time DATETIME NOT NULL COMMENT 'Event end time',
+    location VARCHAR(500) NULL COMMENT 'Event location',
+    attendees JSON NULL COMMENT 'JSON array of attendee emails and their response statuses',
+    status ENUM('confirmed', 'tentative', 'cancelled') NOT NULL COMMENT 'Event status',
+    html_link TEXT NULL COMMENT 'Link to the event in the provider''s calendar (e.g., Google Calendar HTML link)',
+    ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when your system ingested this event',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_user_provider_event UNIQUE (user_id, provider_event_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_calendar_events_user_id (user_id),
+    INDEX idx_user_calendar_events_provider_id (provider_event_id),
+    INDEX idx_user_calendar_events_start_time (start_time),
+    INDEX idx_user_calendar_events_end_time (end_time)
 );

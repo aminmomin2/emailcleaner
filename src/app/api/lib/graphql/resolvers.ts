@@ -2,6 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { UserService } from '../services/userService';
 import { AccountService } from '../services/accountService';
 import { SessionService } from '../services/sessionService';
+import { UserEmailService, UserCalendarEventService } from '../services/userService';
 
 export const resolvers: IResolvers = {
   Query: {
@@ -43,6 +44,30 @@ export const resolvers: IResolvers = {
         console.error('Error fetching current user:', error);
         throw new Error('Failed to fetch current user');
       }
+    },
+
+    userEmails: async () => {
+      return await UserEmailService.getAllUserEmails();
+    },
+
+    userEmail: async (_, { id }) => {
+      return await UserEmailService.getUserEmailById(id);
+    },
+
+    userEmailsByUser: async (_, { userId }) => {
+      return await UserEmailService.getUserEmailsByUserId(userId);
+    },
+
+    userCalendarEvents: async () => {
+      return await UserCalendarEventService.getAllUserCalendarEvents();
+    },
+
+    userCalendarEvent: async (_, { id }) => {
+      return await UserCalendarEventService.getUserCalendarEventById(id);
+    },
+
+    userCalendarEventsByUser: async (_, { userId }) => {
+      return await UserCalendarEventService.getUserCalendarEventsByUserId(userId);
     },
 
     // Account queries
@@ -250,6 +275,87 @@ export const resolvers: IResolvers = {
         throw new Error('Failed to delete session');
       }
     },
+
+    createUserEmail: async (_, { input }) => {
+      // Map camelCase to snake_case
+      const mappedInput = {
+        user_id: input.userId,
+        provider_email_id: input.providerEmailId,
+        thread_id: input.threadId,
+        from_email: input.fromEmail,
+        to_emails: input.toEmails,
+        cc_emails: input.ccEmails,
+        bcc_emails: input.bccEmails,
+        subject: input.subject,
+        snippet: input.snippet,
+        internal_date: input.internalDate,
+        is_read: input.isRead,
+        label_ids: input.labelIds,
+        status: input.status,
+        raw_body_hash: input.rawBodyHash,
+      };
+      return await UserEmailService.createUserEmail(mappedInput);
+    },
+
+    updateUserEmail: async (_, { id, input }) => {
+      // Map camelCase to snake_case
+      const mappedInput = {
+        thread_id: input.threadId,
+        from_email: input.fromEmail,
+        to_emails: input.toEmails,
+        cc_emails: input.ccEmails,
+        bcc_emails: input.bccEmails,
+        subject: input.subject,
+        snippet: input.snippet,
+        internal_date: input.internalDate,
+        is_read: input.isRead,
+        label_ids: input.labelIds,
+        status: input.status,
+        raw_body_hash: input.rawBodyHash,
+      };
+      return await UserEmailService.updateUserEmail(id, mappedInput);
+    },
+
+    deleteUserEmail: async (_, { id }) => {
+      return await UserEmailService.deleteUserEmail(id);
+    },
+
+    createUserCalendarEvent: async (_, { input }) => {
+      // Map camelCase to snake_case
+      const mappedInput = {
+        user_id: input.userId,
+        provider_event_id: input.providerEventId,
+        calendar_id: input.calendarId,
+        summary: input.summary,
+        description: input.description,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        location: input.location,
+        attendees: input.attendees,
+        status: input.status,
+        html_link: input.htmlLink,
+      };
+      return await UserCalendarEventService.createUserCalendarEvent(mappedInput);
+    },
+
+    updateUserCalendarEvent: async (_, { id, input }) => {
+      // Map camelCase to snake_case
+      const mappedInput = {
+        summary: input.summary,
+        description: input.description,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        location: input.location,
+        attendees: input.attendees,
+        status: input.status,
+        html_link: input.htmlLink,
+      };
+      return await UserCalendarEventService.updateUserCalendarEvent(id, mappedInput);
+    },
+
+    deleteUserCalendarEvent: async (_, { id }) => {
+      return await UserCalendarEventService.deleteUserCalendarEvent(id);
+    },
   },
 
   // Field resolvers for relationships
@@ -286,6 +392,14 @@ export const resolvers: IResolvers = {
         console.error('Error fetching user sessions:', error);
         return [];
       }
+    },
+
+    emails: async (parent) => {
+      return await UserEmailService.getUserEmailsByUserId(parent.id);
+    },
+
+    calendarEvents: async (parent) => {
+      return await UserCalendarEventService.getUserCalendarEventsByUserId(parent.id);
     },
   },
 
@@ -327,5 +441,42 @@ export const resolvers: IResolvers = {
         return null;
       }
     },
+  },
+
+  UserEmail: {
+    userId: (parent) => parent.user_id,
+    providerEmailId: (parent) => parent.provider_email_id,
+    threadId: (parent) => parent.thread_id,
+    fromEmail: (parent) => parent.from_email,
+    toEmails: (parent) => parent.to_emails,
+    ccEmails: (parent) => parent.cc_emails,
+    bccEmails: (parent) => parent.bcc_emails,
+    subject: (parent) => parent.subject,
+    snippet: (parent) => parent.snippet,
+    internalDate: (parent) => parent.internal_date,
+    receivedAt: (parent) => parent.received_at,
+    isRead: (parent) => parent.is_read,
+    labelIds: (parent) => parent.label_ids,
+    status: (parent) => parent.status,
+    rawBodyHash: (parent) => parent.raw_body_hash,
+    createdAt: (parent) => parent.created_at,
+    updatedAt: (parent) => parent.updated_at,
+  },
+
+  UserCalendarEvent: {
+    userId: (parent) => parent.user_id,
+    providerEventId: (parent) => parent.provider_event_id,
+    calendarId: (parent) => parent.calendar_id,
+    summary: (parent) => parent.summary,
+    description: (parent) => parent.description,
+    startTime: (parent) => parent.start_time,
+    endTime: (parent) => parent.end_time,
+    location: (parent) => parent.location,
+    attendees: (parent) => parent.attendees,
+    status: (parent) => parent.status,
+    htmlLink: (parent) => parent.html_link,
+    ingestedAt: (parent) => parent.ingested_at,
+    createdAt: (parent) => parent.created_at,
+    updatedAt: (parent) => parent.updated_at,
   },
 }; 
