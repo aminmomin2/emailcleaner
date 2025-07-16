@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { CustomAdapter } from "./app/api/lib/auth/adapters"
 
-export const { auth, handlers } = NextAuth({
+export const authOptions = {
   adapter: CustomAdapter(),
   providers: [
     GoogleProvider({
@@ -12,6 +12,13 @@ export const { auth, handlers } = NextAuth({
         params: {
           access_type: "offline",
           prompt: "consent",
+          scope: [
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/calendar.events"
+          ].join(" "),
         },
       },
     }),
@@ -47,4 +54,6 @@ export const { auth, handlers } = NextAuth({
   debug: process.env.NODE_ENV === "development",
   trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
-}) 
+};
+
+export const { auth, handlers } = NextAuth(authOptions); 

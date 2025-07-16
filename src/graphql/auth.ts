@@ -79,4 +79,36 @@ export const SESSIONS_BY_USER_QUERY = gql`
       updatedAt
     }
   }
+`;
+
+// Query: Get user emails by user
+export const USER_EMAILS_BY_USER_QUERY = gql`
+  query UserEmailsByUser($userId: ID!) {
+    userEmailsByUser(userId: $userId) {
+      id
+      fromEmail
+      toEmails
+      subject
+      snippet
+      internalDate
+      isRead
+      createdAt
+    }
+  }
+`;
+
+// Query: Get user calendar events by user
+export const USER_CALENDAR_EVENTS_BY_USER_QUERY = gql`
+  query UserCalendarEventsByUser($userId: ID!) {
+    userCalendarEventsByUser(userId: $userId) {
+      id
+      summary
+      description
+      startTime
+      endTime
+      location
+      status
+      createdAt
+    }
+  }
 `; 

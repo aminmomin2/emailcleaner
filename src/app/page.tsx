@@ -2,6 +2,9 @@
 
 import Container from "@/components/ui/Container";
 import { gql, useQuery } from "@apollo/client";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserEmailsByUser, useUserCalendarEventsByUser } from "@/hooks/useGraphQLAuth";
 
 const GET_USERS = gql`
   query {
@@ -13,6 +16,39 @@ const GET_USERS = gql`
   }
 `;
 
+// Define a User type for the UsersList
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// Define types for user emails and calendar events
+interface UserEmail {
+  id: string;
+  fromEmail: string;
+  toEmails: string[];
+  ccEmails: string[];
+  bccEmails: string[];
+  subject: string;
+  snippet: string;
+  internalDate: string;
+  isRead: boolean;
+  createdAt: string;
+  labelIds: string[];
+}
+
+interface UserCalendarEvent {
+  id: string;
+  summary: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  status: string;
+  createdAt: string;
+}
+
 function UsersList() {
   const { data, loading, error } = useQuery(GET_USERS);
 
@@ -21,7 +57,7 @@ function UsersList() {
 
   return (
     <ul>
-      {data.users.map((user: any) => (
+      {data.users.map((user: User) => (
         <li key={user.id}>{user.name} ({user.email})</li>
       ))}
     </ul>
@@ -29,13 +65,113 @@ function UsersList() {
 }
 
 export default function Home() {
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
+
+  const userId = user?.id;
+  const {
+    data: emailsData,
+    loading: emailsLoading,
+    error: emailsError,
+  } = useUserEmailsByUser(userId || "");
+  const {
+    data: eventsData,
+    loading: eventsLoading,
+    error: eventsError,
+  } = useUserCalendarEventsByUser(userId || "");
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const res = await fetch("/api/sync", { method: "POST" });
+      if (res.ok) {
+        setSyncMessage("Sync complete!");
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        setSyncMessage(data.error || "Sync failed");
+      }
+    } catch {
+      setSyncMessage("Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <Container>
       <h1 className="text-3xl font-bold text-[var(--text-main)] mb-6">
         Welcome to OmniDo
       </h1>
-      
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+      >
+        {syncing ? "Syncing..." : "Sync Now"}
+      </button>
+      {syncMessage && (
+        <div className="mb-4 text-sm text-green-600">{syncMessage}</div>
+      )}
       <UsersList />
+
+      {/* User Emails Section */}
+      {isAuthenticated && userId && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-2">Your Emails</h2>
+          {emailsLoading && <div>Loading emails...</div>}
+          {emailsError && <div>Error loading emails: {emailsError.message}</div>}
+          {emailsData && emailsData.userEmailsByUser && emailsData.userEmailsByUser.length > 0 ? (
+            <ul className="mb-4">
+              {emailsData.userEmailsByUser.map((email: UserEmail) => (
+                <li key={email.id} className="border-b py-2">
+                  <div className="font-semibold">{email.subject || '(No Subject)'}</div>
+                  <div className="text-xs text-gray-500">From: {email.fromEmail}</div>
+                  <div className="text-xs text-gray-500">To: {email.toEmails && email.toEmails.join(', ')}</div>
+                  {email.ccEmails && email.ccEmails.length > 0 && (
+                    <div className="text-xs text-gray-500">CC: {email.ccEmails.join(', ')}</div>
+                  )}
+                  {email.bccEmails && email.bccEmails.length > 0 && (
+                    <div className="text-xs text-gray-500">BCC: {email.bccEmails.join(', ')}</div>
+                  )}
+                  <div className="text-xs text-gray-500">Date: {email.internalDate}</div>
+                  <div className="text-sm">{email.snippet}</div>
+                  {email.labelIds && email.labelIds.length > 0 && (
+                    <div className="text-xs text-gray-400">Labels: {email.labelIds.join(', ')}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !emailsLoading && <div>No emails found.</div>
+          )}
+        </div>
+      )}
+
+      {/* User Calendar Events Section */}
+      {isAuthenticated && userId && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-2">Your Calendar Events</h2>
+          {eventsLoading && <div>Loading events...</div>}
+          {eventsError && <div>Error loading events: {eventsError.message}</div>}
+          {eventsData && eventsData.userCalendarEventsByUser && eventsData.userCalendarEventsByUser.length > 0 ? (
+            <ul className="mb-4">
+              {eventsData.userCalendarEventsByUser.map((event: UserCalendarEvent) => (
+                <li key={event.id} className="border-b py-2">
+                  <div className="font-semibold">{event.summary || '(No Title)'}</div>
+                  <div className="text-xs text-gray-500">Start: {event.startTime}</div>
+                  <div className="text-xs text-gray-500">End: {event.endTime}</div>
+                  <div className="text-sm">{event.description}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !eventsLoading && <div>No events found.</div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Dashboard Cards */}

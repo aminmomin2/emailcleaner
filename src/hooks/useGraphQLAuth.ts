@@ -5,6 +5,8 @@ import {
   UPDATE_USER_MUTATION,
   ACCOUNTS_BY_USER_QUERY,
   SESSIONS_BY_USER_QUERY,
+  USER_EMAILS_BY_USER_QUERY,
+  USER_CALENDAR_EVENTS_BY_USER_QUERY,
 } from "@/graphql/auth";
 
 // Get current user (me)
@@ -30,4 +32,14 @@ export function useAccountsByUser(userId: string) {
 // Get sessions by user
 export function useSessionsByUser(userId: string) {
   return useQuery(SESSIONS_BY_USER_QUERY, { variables: { userId } });
+}
+
+// Get user emails by user
+export function useUserEmailsByUser(userId: string) {
+  return useQuery(USER_EMAILS_BY_USER_QUERY, { variables: { userId } });
+}
+
+// Get user calendar events by user
+export function useUserCalendarEventsByUser(userId: string) {
+  return useQuery(USER_CALENDAR_EVENTS_BY_USER_QUERY, { variables: { userId } });
 } 

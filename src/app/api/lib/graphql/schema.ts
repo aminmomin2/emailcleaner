@@ -49,15 +49,15 @@ export const typeDefs = gql`
     providerEmailId: String!
     threadId: String
     fromEmail: String
-    toEmails: String
-    ccEmails: String
-    bccEmails: String
+    toEmails: [String]
+    ccEmails: [String]
+    bccEmails: [String]
     subject: String
     snippet: String
     internalDate: String
     receivedAt: String
     isRead: Boolean
-    labelIds: String
+    labelIds: [String]
     status: String
     rawBodyHash: String
     createdAt: String!

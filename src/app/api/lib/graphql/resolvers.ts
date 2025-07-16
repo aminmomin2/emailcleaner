@@ -4,6 +4,18 @@ import { AccountService } from '../services/accountService';
 import { SessionService } from '../services/sessionService';
 import { UserEmailService, UserCalendarEventService } from '../services/userService';
 
+function parseEmailsField(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed;
+    if (typeof parsed === 'string') return [parsed];
+    return [];
+  } catch {
+    return [value];
+  }
+}
+
 export const resolvers: IResolvers = {
   Query: {
     // User queries
@@ -47,15 +59,18 @@ export const resolvers: IResolvers = {
     },
 
     userEmails: async () => {
-      return await UserEmailService.getAllUserEmails();
+      const emails = await UserEmailService.getAllUserEmails();
+      return emails.map(email => ({ ...email }));
     },
 
     userEmail: async (_, { id }) => {
-      return await UserEmailService.getUserEmailById(id);
+      const email = await UserEmailService.getUserEmailById(id);
+      return email ? { ...email } : null;
     },
 
     userEmailsByUser: async (_, { userId }) => {
-      return await UserEmailService.getUserEmailsByUserId(userId);
+      const emails = await UserEmailService.getUserEmailsByUserId(userId);
+      return emails.map(email => ({ ...email }));
     },
 
     userCalendarEvents: async () => {
@@ -447,16 +462,30 @@ export const resolvers: IResolvers = {
     userId: (parent) => parent.user_id,
     providerEmailId: (parent) => parent.provider_email_id,
     threadId: (parent) => parent.thread_id,
-    fromEmail: (parent) => parent.from_email,
-    toEmails: (parent) => parent.to_emails,
-    ccEmails: (parent) => parent.cc_emails,
-    bccEmails: (parent) => parent.bcc_emails,
+    fromEmail: (parent) => {
+      if (!parent.from_email) return null;
+      if (Array.isArray(parent.from_email)) return parent.from_email.join(', ');
+      try {
+        const parsed = JSON.parse(parent.from_email);
+        if (Array.isArray(parsed)) return parsed.join(', ');
+        if (typeof parsed === 'string') return parsed;
+        return String(parent.from_email);
+      } catch {
+        return parent.from_email;
+      }
+    },
+    toEmails: (parent) => {
+      console.log('toEmails resolver called:', parent.to_emails);
+      return parseEmailsField(parent.to_emails);
+    },
+    ccEmails: (parent) => parseEmailsField(parent.cc_emails),
+    bccEmails: (parent) => parseEmailsField(parent.bcc_emails),
     subject: (parent) => parent.subject,
     snippet: (parent) => parent.snippet,
     internalDate: (parent) => parent.internal_date,
     receivedAt: (parent) => parent.received_at,
     isRead: (parent) => parent.is_read,
-    labelIds: (parent) => parent.label_ids,
+    labelIds: (parent) => parseEmailsField(parent.label_ids),
     status: (parent) => parent.status,
     rawBodyHash: (parent) => parent.raw_body_hash,
     createdAt: (parent) => parent.created_at,
