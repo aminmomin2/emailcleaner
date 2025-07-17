@@ -1,0 +1,22 @@
+sources:
+  - name: MySQL
+    handler:
+      mysql:
+        host: localhost
+        port: 3306
+        user: root
+        password: yaalimadad18
+        database: AI_Assistant_DB
+        introspection: true
+
+additionalTypeDefs:
+  - ./src/mesh-type-defs.graphql
+
+additionalResolvers:
+  - ./src/mesh-resolvers.js
+
+serve:
+  port: 4000
+  endpoint: "/graphql"
+  graphiql: true
+  introspection: true

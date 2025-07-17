@@ -2,15 +2,48 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useMe } from "@/hooks/useGraphQLAuth"
+import { useEffect, useState } from "react"
 
 export function useAuth() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
-  const { data: meData, loading: meLoading, error: meError, refetch: refetchMe } = useMe()
+  const [user, setUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(status === "loading")
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      if (status === "authenticated") {
+        setIsLoading(true)
+        try {
+          const res = await fetch("/api/graphql", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: `query Me { me { id name email emailVerified image createdAt updatedAt } }` }),
+          })
+          const { data, errors } = await res.json()
+          if (errors) {
+            setError(errors[0])
+            setUser(null)
+          } else {
+            setUser(data?.me || null)
+            setError(null)
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err : new Error(String(err)))
+          setUser(null)
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setUser(null)
+        setIsLoading(status === "loading")
+      }
+    }
+    fetchMe()
+  }, [status])
 
   const isAuthenticated = status === "authenticated"
-  const isLoading = status === "loading" || meLoading
 
   const login = async (provider?: string) => {
     try {
@@ -44,14 +77,13 @@ export function useAuth() {
 
   return {
     session,
-    user: meData?.me,
+    user,
     isAuthenticated,
     isLoading,
     login,
     logout,
     requireAuth,
     update,
-    meError,
-    refetchMe,
+    error,
   }
 } 

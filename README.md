@@ -1,3 +1,44 @@
+# AI Personal Assistant – Full-Stack Architecture (Updated)
+
+## GraphQL API
+
+- The project now uses **GraphQL Mesh** as the unified GraphQL gateway.
+- The API route `/api/graphql` proxies requests to the Mesh server (default: `http://localhost:4000/graphql`).
+- Mesh is configured via `.meshrc.yaml` (see root directory).
+
+## Running Mesh
+
+1. Install dependencies:
+   ```bash
+   npm install @graphql-mesh/cli @graphql-mesh/runtime @graphql-mesh/config graphql-request
+   ```
+2. Start Mesh in development:
+   ```bash
+   npx mesh dev
+   ```
+   This will serve the GraphQL endpoint at `http://localhost:4000/graphql` and GraphiQL IDE at the same URL.
+
+## Frontend
+
+- Apollo Client has been removed.
+- Use [`graphql-request`](https://github.com/jasonkuhrt/graphql-request) for all GraphQL queries/mutations.
+- See `src/app/page.tsx` for an example of using `graphql-request`.
+
+## Development Tools
+
+- Use the [GraphiQL IDE](https://github.com/graphql/graphiql) at `http://localhost:4000/graphql` for query testing and schema exploration.
+
+## Configuration
+
+- See `.meshrc.yaml` for Mesh source configuration (currently set up for MySQL).
+- Update credentials and sources as needed for your environment.
+
+## Migration Notes
+
+- All Apollo Client/Server code has been removed.
+- The API route now acts as a proxy to Mesh.
+- Update your environment variables as needed (e.g., `MESH_URL`).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

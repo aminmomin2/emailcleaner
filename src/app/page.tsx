@@ -1,13 +1,12 @@
 'use client';
 
 import Container from "@/components/ui/Container";
-import { gql, useQuery } from "@apollo/client";
-import { useState } from "react";
+import { request, gql } from 'graphql-request';
+import { useEffect, useState } from 'react';
 import { useAuth } from "@/hooks/useAuth";
-import { useUserEmailsByUser, useUserCalendarEventsByUser } from "@/hooks/useGraphQLAuth";
 
 const GET_USERS = gql`
-  query {
+  query GetUsers {
     users {
       id
       name
@@ -49,18 +48,39 @@ interface UserCalendarEvent {
   createdAt: string;
 }
 
-function UsersList() {
-  const { data, loading, error } = useQuery(GET_USERS);
+interface UsersData {
+  users: User[];
+}
 
-  if (loading) return <div>Loading users...</div>;
+function UsersList() {
+  const [data, setData] = useState<UsersData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    request<UsersData>('/api/graphql', GET_USERS)
+      .then((data) => {
+        setData(data);
+        setLoading(false);
+      })
+      .catch((err: Error) => {
+        setError(err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
   return (
-    <ul>
-      {data.users.map((user: User) => (
-        <li key={user.id}>{user.name} ({user.email})</li>
-      ))}
-    </ul>
+    <div>
+      <h1>Users</h1>
+      <ul>
+        {data?.users?.map((user) => (
+          <li key={user.id}>{user.name} ({user.email})</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -69,17 +89,55 @@ export default function Home() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
 
-  const userId = user?.id;
-  const {
-    data: emailsData,
-    loading: emailsLoading,
-    error: emailsError,
-  } = useUserEmailsByUser(userId || "");
-  const {
-    data: eventsData,
-    loading: eventsLoading,
-    error: eventsError,
-  } = useUserCalendarEventsByUser(userId || "");
+  const userId = (user as User | null)?.id;
+
+  // Emails state
+  const [emailsData, setEmailsData] = useState<{ userEmailsByUser: UserEmail[] } | null>(null);
+  const [emailsLoading, setEmailsLoading] = useState(false);
+  const [emailsError, setEmailsError] = useState<Error | null>(null);
+
+  // Calendar events state
+  const [eventsData, setEventsData] = useState<{ userCalendarEventsByUser: UserCalendarEvent[] } | null>(null);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      // Fetch emails
+      setEmailsLoading(true);
+      request<{ userEmailsByUser: UserEmail[] }>(
+        '/api/graphql',
+        `query($userId: ID!) { userEmailsByUser(userId: $userId) { id fromEmail toEmails ccEmails bccEmails subject snippet internalDate isRead createdAt labelIds } }`,
+        { userId }
+      )
+        .then((data) => {
+          setEmailsData(data);
+          setEmailsLoading(false);
+        })
+        .catch((err: unknown) => {
+          setEmailsError(err instanceof Error ? err : new Error(String(err)));
+          setEmailsLoading(false);
+        });
+      // Fetch events
+      setEventsLoading(true);
+      request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
+        '/api/graphql',
+        `query($userId: ID!) { userCalendarEventsByUser(userId: $userId) { id summary description startTime endTime location status createdAt } }`,
+        { userId }
+      )
+        .then((data) => {
+          setEventsData(data);
+          setEventsLoading(false);
+        })
+        .catch((err: unknown) => {
+          setEventsError(err instanceof Error ? err : new Error(String(err)));
+          setEventsLoading(false);
+        });
+    } else {
+      setEmailsData(null);
+      setEventsData(null);
+    }
+  }, [isAuthenticated, userId]);
 
   const handleSync = async () => {
     setSyncing(true);

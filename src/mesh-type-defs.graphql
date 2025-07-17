@@ -1,0 +1,13 @@
+extend type Query {
+  me: User
+}
+
+type User {
+  id: ID!
+  name: String
+  email: String
+  emailVerified: DateTime
+  image: String
+  createdAt: DateTime
+  updatedAt: DateTime
+} 
