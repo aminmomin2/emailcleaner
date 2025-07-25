@@ -44,16 +44,17 @@ async function storeSuggestion(userId: string, suggestion: CleanupSuggestion) {
       updated_at = CURRENT_TIMESTAMP
   `;
   
+  // Ensure all parameters are not undefined - convert undefined to null for database
   await executeSingleQuery(query, [
     crypto.randomUUID(),
     userId,
-    suggestion.emailId,
-    suggestion.providerEmailId,
-    suggestion.from,
-    suggestion.subject,
-    suggestion.snippet,
-    suggestion.reason,
-    suggestion.suggestedAction,
+    suggestion.emailId || null,
+    suggestion.providerEmailId || null,
+    suggestion.from || null,
+    suggestion.subject || null,
+    suggestion.snippet || null,
+    suggestion.reason || null,
+    suggestion.suggestedAction || null,
   ]);
 }
 
@@ -63,7 +64,7 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
   // 1. Fetch recent emails from your DB (last 30 days, status active)
   // Also check if we already have suggestions for these emails to avoid reprocessing
   const recentEmails = await executeQuery<UserEmail>(
-    `SELECT ue.* FROM user_emails ue 
+    `SELECT ue.id, ue.provider_email_id as providerEmailId, ue.from_email as fromEmail, ue.subject, ue.snippet, ue.status, ue.internal_date as internalDate FROM user_emails ue 
      LEFT JOIN cleanup_suggestions cs ON ue.id = cs.email_id AND cs.status = 'pending'
      WHERE ue.user_id = ? AND ue.status = 'active' 
      AND ue.internal_date >= ? 
@@ -97,6 +98,12 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
   const addDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   
   for (const email of recentEmails) {
+    // Skip emails that don't have a provider_email_id (required for cleanup suggestions)
+    if (!email.providerEmailId) {
+      console.log(`[DEBUG] Skipping email ${email.id} - no provider_email_id`);
+      continue;
+    }
+    
     // --- Apply Explicit User Rules (Highest Priority) ---
     if (unwantedSenders.some((sender: string) => email.fromEmail?.includes(sender))) {
       const suggestion = {
@@ -156,17 +163,23 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
         'Social Notification',
         'Spam',
       ].includes(classificationText)) {
-        const suggestion = {
-          emailId: email.id,
-          providerEmailId: email.providerEmailId,
-          from: email.fromEmail || 'Unknown',
-          subject: email.subject || 'No Subject',
-          snippet: email.snippet || '',
-          reason: `AI Classified: ${classificationText}`,
-          suggestedAction: 'archive' as const,
-        };
-        suggestions.push(suggestion);
-        await storeSuggestion(userId, suggestion);
+              // Validate required fields before creating suggestion
+      if (!email.id || !email.providerEmailId) {
+        console.log(`[DEBUG] Skipping suggestion for email ${email.id} - missing required fields`);
+        continue;
+      }
+      
+      const suggestion = {
+        emailId: email.id,
+        providerEmailId: email.providerEmailId,
+        from: email.fromEmail || 'Unknown',
+        subject: email.subject || 'No Subject',
+        snippet: email.snippet || '',
+        reason: `AI Classified: ${classificationText}`,
+        suggestedAction: 'archive' as const,
+      };
+      suggestions.push(suggestion);
+      await storeSuggestion(userId, suggestion);
       }
       
       // Add delay between API calls to respect rate limits (15 requests per minute = 4 seconds between calls)

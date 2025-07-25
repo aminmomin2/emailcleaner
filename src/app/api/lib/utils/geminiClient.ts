@@ -7,7 +7,7 @@ if (!GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 export async function classifyEmailWithGemini(subject: string, from: string, snippet: string, fullBody: string): Promise<string> {
   const prompt = `Classify the following email into one of these categories: Newsletter, Promotional, Social Notification, Spam, Personal, Work-Related, Transactional, Other. Provide only the category name.\n\nSubject: ${subject}\nFrom: ${from}\nBody Snippet: ${snippet}\nFull Body (first 500 chars): ${fullBody.substring(0, 500)}`;
