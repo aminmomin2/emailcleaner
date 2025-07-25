@@ -1,5 +1,7 @@
 extend type Query {
   me: User
+  userEmailsByUser(userId: ID!): [UserEmail!]!
+  userCalendarEventsByUser(userId: ID!): [UserCalendarEvent!]!
 }
 
 type User {
@@ -10,4 +12,29 @@ type User {
   image: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type UserEmail {
+  id: ID!
+  fromEmail: String
+  toEmails: [String!]
+  ccEmails: [String!]
+  bccEmails: [String!]
+  subject: String
+  snippet: String
+  internalDate: String
+  isRead: Boolean
+  createdAt: String
+  labelIds: [String!]
+}
+
+type UserCalendarEvent {
+  id: ID!
+  summary: String
+  description: String
+  startTime: String
+  endTime: String
+  location: String
+  status: String
+  createdAt: String
 } 

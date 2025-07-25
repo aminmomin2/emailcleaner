@@ -12,7 +12,12 @@ import type { gmail_v1, calendar_v3 } from 'googleapis';
  */
 export async function syncInitialUserData(userId: string) {
   try {
+    console.log('[SYNC] Starting sync for user:', userId);
     const oauth2Client = await getAuthenticatedGoogleClient(userId);
+    if (!oauth2Client) {
+      console.error('[SYNC] Failed to get authenticated Google client for user:', userId);
+      return;
+    }
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -25,6 +30,7 @@ export async function syncInitialUserData(userId: string) {
       maxResults: 20, // limit for initial sync
     });
     const messages = messagesList.data.messages || [];
+    console.log(`[SYNC] Fetched ${messages.length} emails for user:`, userId);
     for (const msg of messages) {
       try {
         const msgDetail = await gmail.users.messages.get({ userId: 'me', id: msg.id! });
@@ -86,8 +92,9 @@ export async function syncInitialUserData(userId: string) {
           status,
           raw_body_hash,
         ]);
+        console.log(`[SYNC] Inserted/updated email ${provider_email_id} for user:`, userId);
       } catch (err) {
-        console.error('Failed to fetch/store email:', err);
+        console.error('[SYNC] Failed to fetch/store email:', err);
       }
     }
 
@@ -103,6 +110,7 @@ export async function syncInitialUserData(userId: string) {
       orderBy: 'startTime',
     });
     const events = eventsList.data.items || [];
+    console.log(`[SYNC] Fetched ${events.length} calendar events for user:`, userId);
     for (const event of events) {
       try {
         const eventId = crypto.randomUUID();
@@ -151,8 +159,7 @@ export async function syncInitialUserData(userId: string) {
     }
 
     console.log(`Initial sync complete for user ${userId}: ${messages.length} emails, ${events.length} events.`);
-  } catch (err) {
-    console.error('Initial Google sync failed:', err);
-    // Optionally: throw or handle error
+  } catch (error) {
+    console.error('[SYNC] General sync error for user', userId, error);
   }
 } 

@@ -50,6 +50,8 @@ export type Query = {
   users?: Maybe<Array<Maybe<users>>>;
   count_users?: Maybe<Scalars['Int']['output']>;
   me?: Maybe<User>;
+  userEmailsByUser: Array<UserEmail>;
+  userCalendarEventsByUser: Array<UserCalendarEvent>;
 };
 
 
@@ -115,6 +117,16 @@ export type QueryusersArgs = {
 
 export type Querycount_usersArgs = {
   where?: InputMaybe<users_WhereInput>;
+};
+
+
+export type QueryuserEmailsByUserArgs = {
+  userId: Scalars['ID']['input'];
+};
+
+
+export type QueryuserCalendarEventsByUserArgs = {
+  userId: Scalars['ID']['input'];
 };
 
 export type Mutation = {
@@ -957,6 +969,31 @@ export type User = {
   updatedAt?: Maybe<Scalars['DateTime']['output']>;
 };
 
+export type UserEmail = {
+  id: Scalars['ID']['output'];
+  fromEmail?: Maybe<Scalars['String']['output']>;
+  toEmails?: Maybe<Array<Scalars['String']['output']>>;
+  ccEmails?: Maybe<Array<Scalars['String']['output']>>;
+  bccEmails?: Maybe<Array<Scalars['String']['output']>>;
+  subject?: Maybe<Scalars['String']['output']>;
+  snippet?: Maybe<Scalars['String']['output']>;
+  internalDate?: Maybe<Scalars['String']['output']>;
+  isRead?: Maybe<Scalars['Boolean']['output']>;
+  createdAt?: Maybe<Scalars['String']['output']>;
+  labelIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+export type UserCalendarEvent = {
+  id: Scalars['ID']['output'];
+  summary?: Maybe<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  startTime?: Maybe<Scalars['String']['output']>;
+  endTime?: Maybe<Scalars['String']['output']>;
+  location?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  createdAt?: Maybe<Scalars['String']['output']>;
+};
+
 export type WithIndex<TObject> = TObject & Record<string, any>;
 export type ResolversObject<TObject> = WithIndex<TObject>;
 
@@ -1082,6 +1119,8 @@ export type ResolversTypes = ResolversObject<{
   users_UpdateInput: users_UpdateInput;
   User: ResolverTypeWrapper<User>;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
+  UserEmail: ResolverTypeWrapper<UserEmail>;
+  UserCalendarEvent: ResolverTypeWrapper<UserCalendarEvent>;
 }>;
 
 /** Mapping between all available schema types and the resolvers parents */
@@ -1122,6 +1161,8 @@ export type ResolversParentTypes = ResolversObject<{
   users_UpdateInput: users_UpdateInput;
   User: User;
   ID: Scalars['ID']['output'];
+  UserEmail: UserEmail;
+  UserCalendarEvent: UserCalendarEvent;
 }>;
 
 export type transportDirectiveArgs = {
@@ -1189,6 +1230,8 @@ export type QueryResolvers<ContextType = MeshContext, ParentType extends Resolve
   users?: Resolver<Maybe<Array<Maybe<ResolversTypes['users']>>>, ParentType, ContextType, Partial<QueryusersArgs>>;
   count_users?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType, Partial<Querycount_usersArgs>>;
   me?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
+  userEmailsByUser?: Resolver<Array<ResolversTypes['UserEmail']>, ParentType, ContextType, RequireFields<QueryuserEmailsByUserArgs, 'userId'>>;
+  userCalendarEventsByUser?: Resolver<Array<ResolversTypes['UserCalendarEvent']>, ParentType, ContextType, RequireFields<QueryuserCalendarEventsByUserArgs, 'userId'>>;
 }>;
 
 export type MutationResolvers<ContextType = MeshContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = ResolversObject<{
@@ -1325,6 +1368,33 @@ export type UserResolvers<ContextType = MeshContext, ParentType extends Resolver
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 }>;
 
+export type UserEmailResolvers<ContextType = MeshContext, ParentType extends ResolversParentTypes['UserEmail'] = ResolversParentTypes['UserEmail']> = ResolversObject<{
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  fromEmail?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  toEmails?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  ccEmails?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  bccEmails?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  subject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  snippet?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  internalDate?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  isRead?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  createdAt?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  labelIds?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+}>;
+
+export type UserCalendarEventResolvers<ContextType = MeshContext, ParentType extends ResolversParentTypes['UserCalendarEvent'] = ResolversParentTypes['UserCalendarEvent']> = ResolversObject<{
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  summary?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  startTime?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endTime?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  location?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  createdAt?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+}>;
+
 export type Resolvers<ContextType = MeshContext> = ResolversObject<{
   Query?: QueryResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
@@ -1338,6 +1408,8 @@ export type Resolvers<ContextType = MeshContext> = ResolversObject<{
   JSON?: GraphQLScalarType;
   user_emails?: user_emailsResolvers<ContextType>;
   User?: UserResolvers<ContextType>;
+  UserEmail?: UserEmailResolvers<ContextType>;
+  UserCalendarEvent?: UserCalendarEventResolvers<ContextType>;
 }>;
 
 export type DirectiveResolvers<ContextType = MeshContext> = ResolversObject<{

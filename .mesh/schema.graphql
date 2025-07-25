@@ -29,6 +29,8 @@ type Query {
   users(limit: Int, offset: Int, where: users_WhereInput, orderBy: users_OrderByInput): [users] @mysqlSelect(subgraph: "MySQL", table: "users")
   count_users(where: users_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "users")
   me: User
+  userEmailsByUser(userId: ID!): [UserEmail!]!
+  userCalendarEventsByUser(userId: ID!): [UserCalendarEvent!]!
 }
 
 type Mutation {
@@ -808,4 +810,29 @@ type User {
   image: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type UserEmail {
+  id: ID!
+  fromEmail: String
+  toEmails: [String!]
+  ccEmails: [String!]
+  bccEmails: [String!]
+  subject: String
+  snippet: String
+  internalDate: String
+  isRead: Boolean
+  createdAt: String
+  labelIds: [String!]
+}
+
+type UserCalendarEvent {
+  id: ID!
+  summary: String
+  description: String
+  startTime: String
+  endTime: String
+  location: String
+  status: String
+  createdAt: String
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Container from "@/components/ui/Container";
-import { request, gql } from 'graphql-request';
+import { request, gql, GraphQLClient } from 'graphql-request';
 import { useEffect, useState } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 
@@ -58,7 +58,9 @@ function UsersList() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    request<UsersData>('/api/graphql', GET_USERS)
+    // Use absolute URL for endpoint to avoid Invalid URL error
+    const endpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/graphql` : '/api/graphql';
+    request<UsersData>(endpoint, GET_USERS)
       .then((data) => {
         setData(data);
         setLoading(false);
@@ -103,10 +105,13 @@ export default function Home() {
 
   useEffect(() => {
     if (isAuthenticated && userId) {
+      const endpoint = `${window.location.origin}/api/graphql`;
+      const client = new GraphQLClient(endpoint);
+      // Debug log for emails request
+      console.log("Requesting emails with:", endpoint, userId);
       // Fetch emails
       setEmailsLoading(true);
-      request<{ userEmailsByUser: UserEmail[] }>(
-        '/api/graphql',
+      client.request<{ userEmailsByUser: UserEmail[] }>(
         `query($userId: ID!) { userEmailsByUser(userId: $userId) { id fromEmail toEmails ccEmails bccEmails subject snippet internalDate isRead createdAt labelIds } }`,
         { userId }
       )
@@ -117,11 +122,18 @@ export default function Home() {
         .catch((err: unknown) => {
           setEmailsError(err instanceof Error ? err : new Error(String(err)));
           setEmailsLoading(false);
+          // Log full error stack
+          if (err instanceof Error) {
+            console.error('Emails request error:', err, err.stack);
+          } else {
+            console.error('Emails request error:', err);
+          }
         });
+      // Debug log for events request
+      console.log("Requesting events with:", endpoint, userId);
       // Fetch events
       setEventsLoading(true);
-      request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
-        '/api/graphql',
+      client.request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
         `query($userId: ID!) { userCalendarEventsByUser(userId: $userId) { id summary description startTime endTime location status createdAt } }`,
         { userId }
       )
@@ -132,7 +144,22 @@ export default function Home() {
         .catch((err: unknown) => {
           setEventsError(err instanceof Error ? err : new Error(String(err)));
           setEventsLoading(false);
+          // Log full error stack
+          if (err instanceof Error) {
+            console.error('Events request error:', err, err.stack);
+          } else {
+            console.error('Events request error:', err);
+          }
         });
+      // Plain fetch test for /api/graphql
+      fetch('/api/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: '{ __typename }' })
+      })
+        .then(res => res.json())
+        .then(data => console.log('Plain fetch result:', data))
+        .catch(err => console.error('Plain fetch error:', err, err.stack));
     } else {
       setEmailsData(null);
       setEventsData(null);
