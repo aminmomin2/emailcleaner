@@ -1,5 +1,5 @@
 import { UserService } from '../../services/userService';
-import { getAuthenticatedGoogleClient } from '../../../auth/tokenManagement';
+import { getAuthenticatedGoogleClient } from '../../auth/tokenManagement';
 import { google } from 'googleapis';
 import { executeSingleQuery } from '../../database';
 import crypto from 'crypto';

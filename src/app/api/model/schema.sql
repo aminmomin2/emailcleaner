@@ -14,6 +14,7 @@ CREATE TABLE users (
     email_verified DATETIME NULL COMMENT 'Timestamp when the email was verified (e.g., via OAuth login)',
     image TEXT NULL COMMENT 'URL to user''s profile picture from the OAuth provider',
     last_synced_at DATETIME NULL COMMENT 'Last time user data was polled for new emails/events',
+    has_synced BOOLEAN DEFAULT FALSE COMMENT 'Whether the user has completed initial sync',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when the user record was created',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the user record was last updated'
 );
@@ -134,4 +135,48 @@ CREATE TABLE user_calendar_events (
     INDEX idx_user_calendar_events_provider_id (provider_event_id),
     INDEX idx_user_calendar_events_start_time (start_time),
     INDEX idx_user_calendar_events_end_time (end_time)
+);
+
+-- -----------------------------------------------------
+-- Table `user_preferences`
+-- Stores user preferences and settings.
+-- -----------------------------------------------------
+CREATE TABLE user_preferences (
+    id VARCHAR(36) PRIMARY KEY COMMENT 'Unique ID for the preference (UUID)',
+    user_id VARCHAR(36) NOT NULL COMMENT 'Foreign key linking to the users table',
+    preference_key VARCHAR(255) NOT NULL COMMENT 'The preference key/name',
+    preference_value TEXT NULL COMMENT 'The preference value (can be JSON for complex data)',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when the preference was created',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the preference was last updated',
+
+    CONSTRAINT unique_user_preference_key UNIQUE (user_id, preference_key),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_preferences_user_id (user_id),
+    INDEX idx_user_preferences_key (preference_key)
+);
+
+-- -----------------------------------------------------
+-- Table `cleanup_suggestions`
+-- Stores AI-generated cleanup suggestions for user emails.
+-- -----------------------------------------------------
+CREATE TABLE cleanup_suggestions (
+    id VARCHAR(36) PRIMARY KEY COMMENT 'Unique ID for the suggestion (UUID)',
+    user_id VARCHAR(36) NOT NULL COMMENT 'Foreign key linking to the users table',
+    email_id VARCHAR(36) NOT NULL COMMENT 'Foreign key linking to the user_emails table',
+    provider_email_id VARCHAR(255) NOT NULL COMMENT 'The email''s ID from Google/Outlook',
+    from_email VARCHAR(255) NULL COMMENT 'Sender''s email address',
+    subject VARCHAR(500) NULL COMMENT 'Email subject line',
+    snippet TEXT NULL COMMENT 'A short preview/snippet of the email body',
+    reason VARCHAR(500) NOT NULL COMMENT 'Reason for the cleanup suggestion',
+    suggested_action ENUM('archive', 'trash', 'delete_permanently') NOT NULL COMMENT 'Suggested cleanup action',
+    status ENUM('pending', 'approved', 'rejected', 'executed') DEFAULT 'pending' COMMENT 'Current status of the suggestion',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp when the suggestion was created',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Timestamp when the suggestion was last updated',
+
+    CONSTRAINT unique_user_email_suggestion UNIQUE (user_id, email_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (email_id) REFERENCES user_emails(id) ON DELETE CASCADE,
+    INDEX idx_cleanup_suggestions_user_id (user_id),
+    INDEX idx_cleanup_suggestions_status (status),
+    INDEX idx_cleanup_suggestions_created_at (created_at)
 );

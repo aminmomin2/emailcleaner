@@ -8,6 +8,8 @@ export interface User {
   image: string | null;
   created_at: string;
   updated_at: string;
+  has_synced?: boolean;
+  last_synced_at?: string;
 }
 
 export interface CreateUserInput {
@@ -22,6 +24,7 @@ export interface UpdateUserInput {
   email?: string;
   email_verified?: string;
   image?: string;
+  has_synced?: boolean; // Add has_synced
 }
 
 export class UserService {
@@ -40,7 +43,7 @@ export class UserService {
     try {
       console.log('getUserById called with id:', id);
       const query = `
-        SELECT id, name, email, email_verified, image, created_at, updated_at
+        SELECT id, name, email, email_verified, image, created_at, updated_at, has_synced
         FROM users
         WHERE id = ?
       `;
@@ -123,7 +126,7 @@ export class UserService {
   // Update user
   static async updateUser(id: string, input: UpdateUserInput): Promise<User | null> {
     const updateFields: string[] = [];
-    const values: (string | null)[] = [];
+    const values: (string | boolean | null)[] = [];
 
     if (input.name !== undefined) {
       updateFields.push('name = ?');
@@ -141,6 +144,10 @@ export class UserService {
       updateFields.push('image = ?');
       values.push(input.image);
     }
+    if (input.has_synced !== undefined) {
+      updateFields.push('has_synced = ?');
+      values.push(input.has_synced);
+    }
 
     if (updateFields.length === 0) {
       return await this.getUserById(id);
@@ -157,6 +164,18 @@ export class UserService {
 
     await executeSingleQuery(query, values);
     return await this.getUserById(id);
+  }
+
+  // Get user sync state
+  static async getUserSyncState(id: string): Promise<boolean> {
+    const query = `SELECT has_synced FROM users WHERE id = ?`;
+    const result = await getSingleRow<{ has_synced: boolean }>(query, [id]);
+    return !!result?.has_synced;
+  }
+  // Set user as synced
+  static async setUserSynced(id: string): Promise<void> {
+    const query = `UPDATE users SET has_synced = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    await executeSingleQuery(query, [id]);
   }
 
   // Delete user

@@ -1,75 +1,15 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Tabs from '@/components/ui/Tabs'
-import Card, { CardHeader, CardBody, CardFooter } from '@/components/ui/Card'
+import Card, { CardHeader, CardBody } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Switch from '@/components/ui/Switch'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
-import Badge from '@/components/ui/Badge'
-import Modal from '@/components/ui/Modal'
-import Alert from '@/components/ui/Alert'
 import Container from '@/components/ui/Container'
 
-// Types for workflows
-interface Workflow {
-  id: string
-  name: string
-  description: string
-  status: 'active' | 'inactive'
-  lastRun?: string
-  nextRun?: string
-  trigger: string
-  steps: string[]
-}
-
-// Mock data for workflows
-const mockWorkflows: Workflow[] = [
-  {
-    id: '1',
-    name: 'Monthly Expense Report Submission',
-    description: 'Automatically collect and submit monthly expense reports',
-    status: 'active',
-    lastRun: '2024-01-15 09:00 AM',
-    nextRun: '2024-02-15 09:00 AM',
-    trigger: 'Monthly on 15th',
-    steps: ['Collect receipts from email', 'Categorize expenses', 'Generate report', 'Submit to manager']
-  },
-  {
-    id: '2',
-    name: 'New Client Onboarding Sequence',
-    description: 'Welcome new clients with automated onboarding emails and setup',
-    status: 'active',
-    lastRun: '2024-01-20 02:30 PM',
-    nextRun: 'Triggered by new client signup',
-    trigger: 'New client registration',
-    steps: ['Send welcome email', 'Create client folder', 'Schedule intro call', 'Send onboarding materials']
-  },
-  {
-    id: '3',
-    name: 'Weekly Team Status Update',
-    description: 'Collect and compile weekly team status updates',
-    status: 'inactive',
-    lastRun: '2024-01-12 05:00 PM',
-    nextRun: 'Disabled',
-    trigger: 'Weekly on Fridays',
-    steps: ['Send reminder to team', 'Collect responses', 'Compile report', 'Send to stakeholders']
-  }
-]
-
 const PreferencesAndRulesPage = () => {
-  const [workflows, setWorkflows] = useState<Workflow[]>(mockWorkflows)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
-  const [newWorkflow, setNewWorkflow] = useState({
-    name: '',
-    description: '',
-    trigger: '',
-    steps: ['']
-  })
-
   // General AI Behavior settings
   const [aiSettings, setAiSettings] = useState({
     tone: 'professional',
@@ -100,49 +40,84 @@ const PreferencesAndRulesPage = () => {
     }
   })
 
-  const handleWorkflowToggle = (workflowId: string) => {
-    setWorkflows(prev => prev.map(w => 
-      w.id === workflowId 
-        ? { ...w, status: w.status === 'active' ? 'inactive' : 'active' }
-        : w
-    ))
+  // Email Cleaner Preferences state
+  const [unwantedSenders, setUnwantedSenders] = useState<string[]>([]);
+  const [newSender, setNewSender] = useState('');
+  const [cleanOlderThan, setCleanOlderThan] = useState<string>('');
+
+  // Backend preferences integration
+  // (loadingPrefs, savingPrefs, saveStatus are not used in UI, so removed to fix linter)
+
+  // Helper: Map backend prefs to UI state
+  function applyPrefsToState(prefs: Record<string, string>) {
+    // General AI
+    setAiSettings({
+      tone: prefs['ai_default_tone'] || 'professional',
+      communicationChannels: ['email', 'slack'], // Not in backend yet
+      responseTime: prefs['ai_response_time_expectation'] || 'within-4-hours',
+      autoSummarize: prefs['auto_summarize_long_messages_enabled'] === 'true',
+      proactiveSuggestions: prefs['proactive_suggestions_enabled'] === 'true',
+    });
+    // Email
+    setEmailSettings({
+      autoArchiveNewsletters: prefs['email_auto_categorize_enabled'] === 'true',
+      autoReplyOutOfOffice: prefs['email_auto_reply_ooo_enabled'] === 'true',
+      autoReplyTemplate: prefs['email_auto_reply_ooo_template'] || '',
+      smartCategorization: prefs['email_auto_categorize_enabled'] === 'true',
+      priorityInbox: prefs['email_priority_inbox_enabled'] === 'true',
+    });
+    // Email Cleaner
+    setUnwantedSenders(prefs['email_cleaner_unwanted_senders'] ? JSON.parse(prefs['email_cleaner_unwanted_senders']) : []);
+    setCleanOlderThan(prefs['email_cleaner_old_email_days'] || '');
+    // Calendar
+    setCalendarSettings({
+      autoAcceptInternal: prefs['calendar_auto_accept_internal_enabled'] === 'true',
+      autoDeclineConflicts: prefs['calendar_auto_decline_conflicts_enabled'] === 'true',
+      smartTimeBlocking: prefs['calendar_smart_time_blocking_enabled'] === 'true',
+      bufferTime: prefs['calendar_buffer_time_minutes'] || '15',
+      workingHours: {
+        start: prefs['calendar_working_hours_start'] || '09:00',
+        end: prefs['calendar_working_hours_end'] || '17:00',
+      },
+    });
   }
 
-  const handleCreateWorkflow = () => {
-    const workflow: Workflow = {
-      id: Date.now().toString(),
-      name: newWorkflow.name,
-      description: newWorkflow.description,
-      status: 'active',
-      trigger: newWorkflow.trigger,
-      steps: newWorkflow.steps.filter(step => step.trim() !== ''),
-      lastRun: undefined,
-      nextRun: 'Pending first run'
+  // Fetch preferences on mount
+  useEffect(() => {
+    // setLoadingPrefs(true); // Removed as per edit hint
+    fetch('/api/user/preferences')
+      .then(res => res.json())
+      .then(data => {
+        const prefs: Record<string, string> = {};
+        (data.preferences || []).forEach((p: {preferenceKey: string, preferenceValue: string}) => {
+          prefs[p.preferenceKey] = p.preferenceValue;
+        });
+        applyPrefsToState(prefs);
+        // setLoadingPrefs(false); // Removed as per edit hint
+      })
+      .catch(() => {
+        // setLoadingPrefs(false); // Removed as per edit hint
+      });
+  }, []);
+
+  // Helper: Save a preference
+  async function savePref(key: string, value: string) {
+    // setSavingPrefs(true); // Removed as per edit hint
+    // setSaveStatus(null); // Removed as per edit hint
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      // setSaveStatus('Saved!'); // Removed as per edit hint
+    } catch {
+      // setSaveStatus('Error saving'); // Removed as per edit hint
+    } finally {
+      // setSavingPrefs(false); // Removed as per edit hint
+      // setTimeout(() => setSaveStatus(null), 2000); // Removed as per edit hint
     }
-    setWorkflows(prev => [...prev, workflow])
-    setShowCreateModal(false)
-    setNewWorkflow({ name: '', description: '', trigger: '', steps: [''] })
-  }
-
-  const addWorkflowStep = () => {
-    setNewWorkflow(prev => ({
-      ...prev,
-      steps: [...prev.steps, '']
-    }))
-  }
-
-  const updateWorkflowStep = (index: number, value: string) => {
-    setNewWorkflow(prev => ({
-      ...prev,
-      steps: prev.steps.map((step, i) => i === index ? value : step)
-    }))
-  }
-
-  const removeWorkflowStep = (index: number) => {
-    setNewWorkflow(prev => ({
-      ...prev,
-      steps: prev.steps.filter((_, i) => i !== index)
-    }))
   }
 
   const tabs = [
@@ -164,7 +139,10 @@ const PreferencesAndRulesPage = () => {
                   </label>
                   <Select
                     value={aiSettings.tone}
-                    onChange={(value) => setAiSettings(prev => ({ ...prev, tone: value }))}
+                    onChange={(value) => {
+                      setAiSettings(prev => ({ ...prev, tone: value }));
+                      savePref('ai_default_tone', value);
+                    }}
                     options={[
                       { value: 'professional', label: 'Professional' },
                       { value: 'casual', label: 'Casual' },
@@ -179,7 +157,10 @@ const PreferencesAndRulesPage = () => {
                   </label>
                   <Select
                     value={aiSettings.responseTime}
-                    onChange={(value) => setAiSettings(prev => ({ ...prev, responseTime: value }))}
+                    onChange={(value) => {
+                      setAiSettings(prev => ({ ...prev, responseTime: value }));
+                      savePref('ai_response_time_expectation', value);
+                    }}
                     options={[
                       { value: 'immediate', label: 'Immediate' },
                       { value: 'within-1-hour', label: 'Within 1 hour' },
@@ -198,7 +179,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={aiSettings.autoSummarize}
-                    onChange={(checked) => setAiSettings(prev => ({ ...prev, autoSummarize: checked }))}
+                    onChange={(checked) => {
+                      setAiSettings(prev => ({ ...prev, autoSummarize: checked }));
+                      savePref('auto_summarize_long_messages_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -209,7 +193,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={aiSettings.proactiveSuggestions}
-                    onChange={(checked) => setAiSettings(prev => ({ ...prev, proactiveSuggestions: checked }))}
+                    onChange={(checked) => {
+                      setAiSettings(prev => ({ ...prev, proactiveSuggestions: checked }));
+                      savePref('proactive_suggestions_enabled', checked.toString());
+                    }}
                   />
                 </div>
               </div>
@@ -237,7 +224,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={emailSettings.autoArchiveNewsletters}
-                    onChange={(checked) => setEmailSettings(prev => ({ ...prev, autoArchiveNewsletters: checked }))}
+                    onChange={(checked) => {
+                      setEmailSettings(prev => ({ ...prev, autoArchiveNewsletters: checked }));
+                      savePref('email_auto_categorize_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -248,7 +238,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={emailSettings.autoReplyOutOfOffice}
-                    onChange={(checked) => setEmailSettings(prev => ({ ...prev, autoReplyOutOfOffice: checked }))}
+                    onChange={(checked) => {
+                      setEmailSettings(prev => ({ ...prev, autoReplyOutOfOffice: checked }));
+                      savePref('email_auto_reply_ooo_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -259,7 +252,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={emailSettings.smartCategorization}
-                    onChange={(checked) => setEmailSettings(prev => ({ ...prev, smartCategorization: checked }))}
+                    onChange={(checked) => {
+                      setEmailSettings(prev => ({ ...prev, smartCategorization: checked }));
+                      savePref('email_auto_categorize_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -270,7 +266,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={emailSettings.priorityInbox}
-                    onChange={(checked) => setEmailSettings(prev => ({ ...prev, priorityInbox: checked }))}
+                    onChange={(checked) => {
+                      setEmailSettings(prev => ({ ...prev, priorityInbox: checked }));
+                      savePref('email_priority_inbox_enabled', checked.toString());
+                    }}
                   />
                 </div>
               </div>
@@ -282,13 +281,76 @@ const PreferencesAndRulesPage = () => {
                   </label>
                   <Textarea
                     value={emailSettings.autoReplyTemplate}
-                    onChange={(e) => setEmailSettings(prev => ({ ...prev, autoReplyTemplate: e.target.value }))}
+                    onChange={(value: string) => {
+                      setEmailSettings(prev => ({ ...prev, autoReplyTemplate: value }));
+                      savePref('email_auto_reply_ooo_template', value);
+                    }}
                     placeholder="Enter your out-of-office message..."
                     rows={3}
                   />
                 </div>
               )}
             </CardBody>
+          </Card>
+
+          {/* Email Cleaner Preferences Section */}
+          <Card variant="elevated" padding="md" className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Email Cleaner Preferences</h2>
+            <div className="mb-4">
+              <label className="block font-medium mb-1">Unwanted Senders</label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={newSender}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSender(e.target.value)}
+                  placeholder="Add email or domain"
+                  className="w-64"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newSender && !unwantedSenders.includes(newSender)) {
+                      setUnwantedSenders([...unwantedSenders, newSender]);
+                      setNewSender('');
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {unwantedSenders.map(sender => (
+                  <span key={sender} className="bg-gray-200 px-2 py-1 rounded text-sm flex items-center">
+                    {sender}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-1"
+                      onClick={() => setUnwantedSenders(prev => prev.filter(s => s !== sender))}
+                    >
+                      ×
+                    </Button>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block font-medium mb-1">Clean Up Older Than (days)</label>
+              <Input
+                type="number"
+                value={cleanOlderThan}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setCleanOlderThan(e.target.value);
+                  savePref('email_cleaner_old_email_days', e.target.value);
+                }}
+                className="w-32"
+                placeholder="e.g. 90"
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block font-medium mb-1">Auto-clean (requires review)</label>
+              <span className="text-sm text-[var(--text-secondary)]">Coming soon</span>
+            </div>
           </Card>
         </div>
       )
@@ -312,7 +374,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={calendarSettings.autoAcceptInternal}
-                    onChange={(checked) => setCalendarSettings(prev => ({ ...prev, autoAcceptInternal: checked }))}
+                    onChange={(checked) => {
+                      setCalendarSettings(prev => ({ ...prev, autoAcceptInternal: checked }));
+                      savePref('calendar_auto_accept_internal_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -323,7 +388,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={calendarSettings.autoDeclineConflicts}
-                    onChange={(checked) => setCalendarSettings(prev => ({ ...prev, autoDeclineConflicts: checked }))}
+                    onChange={(checked) => {
+                      setCalendarSettings(prev => ({ ...prev, autoDeclineConflicts: checked }));
+                      savePref('calendar_auto_decline_conflicts_enabled', checked.toString());
+                    }}
                   />
                 </div>
                 
@@ -334,7 +402,10 @@ const PreferencesAndRulesPage = () => {
                   </div>
                   <Switch
                     checked={calendarSettings.smartTimeBlocking}
-                    onChange={(checked) => setCalendarSettings(prev => ({ ...prev, smartTimeBlocking: checked }))}
+                    onChange={(checked) => {
+                      setCalendarSettings(prev => ({ ...prev, smartTimeBlocking: checked }));
+                      savePref('calendar_smart_time_blocking_enabled', checked.toString());
+                    }}
                   />
                 </div>
               </div>
@@ -347,7 +418,10 @@ const PreferencesAndRulesPage = () => {
                   <Input
                     type="number"
                     value={calendarSettings.bufferTime}
-                    onChange={(e) => setCalendarSettings(prev => ({ ...prev, bufferTime: e.target.value }))}
+                    onChange={(e) => {
+                      setCalendarSettings(prev => ({ ...prev, bufferTime: e.target.value }));
+                      savePref('calendar_buffer_time_minutes', e.target.value);
+                    }}
                     placeholder="15"
                   />
                 </div>
@@ -356,12 +430,15 @@ const PreferencesAndRulesPage = () => {
                     Working Hours Start
                   </label>
                   <Input
-                    type="time"
+                    type="text"
                     value={calendarSettings.workingHours.start}
-                    onChange={(e) => setCalendarSettings(prev => ({ 
-                      ...prev, 
-                      workingHours: { ...prev.workingHours, start: e.target.value }
-                    }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setCalendarSettings(prev => ({ 
+                        ...prev, 
+                        workingHours: { ...prev.workingHours, start: e.target.value }
+                      }));
+                      savePref('calendar_working_hours_start', e.target.value);
+                    }}
                   />
                 </div>
                 <div>
@@ -369,12 +446,15 @@ const PreferencesAndRulesPage = () => {
                     Working Hours End
                   </label>
                   <Input
-                    type="time"
+                    type="text"
                     value={calendarSettings.workingHours.end}
-                    onChange={(e) => setCalendarSettings(prev => ({ 
-                      ...prev, 
-                      workingHours: { ...prev.workingHours, end: e.target.value }
-                    }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setCalendarSettings(prev => ({ 
+                        ...prev, 
+                        workingHours: { ...prev.workingHours, end: e.target.value }
+                      }));
+                      savePref('calendar_working_hours_end', e.target.value);
+                    }}
                   />
                 </div>
               </div>
@@ -383,106 +463,7 @@ const PreferencesAndRulesPage = () => {
         </div>
       )
     },
-    {
-      id: 'workflows',
-      label: 'Automated Workflows',
-      content: (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Automated Workflows & Recurring Processes</h2>
-              <p className="text-sm text-gray-600">Teach AI to perform complex, repeated tasks without constant oversight</p>
-            </div>
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              variant="primary"
-            >
-              Create New Workflow
-            </Button>
-          </div>
-
-          <div className="grid gap-4">
-            {workflows.map((workflow) => (
-              <Card key={workflow.id} variant="elevated">
-                <CardBody>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{workflow.name}</h3>
-                        <Badge 
-                          variant={workflow.status === 'active' ? 'success' : 'secondary'}
-                          size="sm"
-                        >
-                          {workflow.status === 'active' ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">{workflow.description}</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Trigger:</span>
-                          <p className="text-gray-600">{workflow.trigger}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Last Run:</span>
-                          <p className="text-gray-600">{workflow.lastRun || 'Never'}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Next Run:</span>
-                          <p className="text-gray-600">{workflow.nextRun}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3">
-                        <span className="text-sm font-medium text-gray-700">Steps:</span>
-                        <ul className="mt-1 space-y-1">
-                          {workflow.steps.map((step, index) => (
-                            <li key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium">
-                                {index + 1}
-                              </span>
-                              {step}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-2 ml-4">
-                      <Switch
-                        checked={workflow.status === 'active'}
-                        onChange={() => handleWorkflowToggle(workflow.id)}
-                        label="Enable"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedWorkflow(workflow)
-                          // Here you would open edit modal
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedWorkflow(workflow)
-                          setShowHistoryModal(true)
-                        }}
-                      >
-                        View History
-                      </Button>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )
-    }
+    // (No workflows tab)
   ]
 
   return (
@@ -495,147 +476,6 @@ const PreferencesAndRulesPage = () => {
       </div>
 
       <Tabs tabs={tabs} defaultTab="general"/>
-
-      {/* Create Workflow Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Create New Workflow"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Workflow Name
-            </label>
-            <Input
-              value={newWorkflow.name}
-              onChange={(e) => setNewWorkflow(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Monthly Expense Report Submission"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <Textarea
-              value={newWorkflow.description}
-              onChange={(e) => setNewWorkflow(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe what this workflow does..."
-              rows={3}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Trigger
-            </label>
-            <Select
-              value={newWorkflow.trigger}
-              onChange={(value) => setNewWorkflow(prev => ({ ...prev, trigger: value }))}
-              options={[
-                { value: 'monthly', label: 'Monthly' },
-                { value: 'weekly', label: 'Weekly' },
-                { value: 'daily', label: 'Daily' },
-                { value: 'new-client', label: 'New Client Registration' },
-                { value: 'email-received', label: 'Email Received' },
-                { value: 'manual', label: 'Manual Trigger' }
-              ]}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Workflow Steps
-            </label>
-            <div className="space-y-2">
-              {newWorkflow.steps.map((step, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    value={step}
-                    onChange={(e) => updateWorkflowStep(index, e.target.value)}
-                    placeholder={`Step ${index + 1}`}
-                  />
-                  {newWorkflow.steps.length > 1 && (
-                    <Button
-                      variant="danger"
-                      size="icon"
-                      onClick={() => removeWorkflowStep(index)}
-                    >
-                      ×
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addWorkflowStep}
-              >
-                Add Step
-              </Button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex justify-end gap-3 mt-6">
-          <Button
-            variant="secondary"
-            onClick={() => setShowCreateModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleCreateWorkflow}
-            disabled={!newWorkflow.name || !newWorkflow.description || !newWorkflow.trigger}
-          >
-            Create Workflow
-          </Button>
-        </div>
-      </Modal>
-
-      {/* Workflow History Modal */}
-      <Modal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        title={`Workflow History - ${selectedWorkflow?.name}`}
-        size="lg"
-      >
-        <div className="space-y-4">
-          <Alert variant="info">
-            <p>This feature would show detailed logs of workflow executions, including success/failure status, timestamps, and any errors encountered.</p>
-          </Alert>
-          
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">Sample History Entries</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span>2024-01-15 09:00 AM</span>
-                <Badge variant="success" size="sm">Success</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>2024-01-08 09:00 AM</span>
-                <Badge variant="success" size="sm">Success</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>2024-01-01 09:00 AM</span>
-                <Badge variant="danger" size="sm">Failed</Badge>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex justify-end mt-6">
-          <Button
-            variant="secondary"
-            onClick={() => setShowHistoryModal(false)}
-          >
-            Close
-          </Button>
-        </div>
-      </Modal>
     </Container>
   )
 }

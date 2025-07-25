@@ -1,4 +1,4 @@
-import { Adapter, AdapterUser, AdapterAccount, AdapterSession } from "next-auth/adapters"
+import { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "next-auth/adapters"
 import { UserService } from "../services/userService"
 import { AccountService } from "../services/accountService"
 import { SessionService } from "../services/sessionService"
@@ -8,7 +8,7 @@ import { toMySQLDateTime } from "../utils/datetime"
 export function CustomAdapter(): Adapter {
   console.log("🔵 [ADAPTER] CustomAdapter initialized");
   return {
-    async createUser(user) {
+    async createUser(user: Omit<AdapterUser, "id">) {
       try {
         // Check if email is verified based on the user object passed from NextAuth callbacks
         // NextAuth callbacks will set emailVerified for Google users and null for credentials users
@@ -34,7 +34,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async getUser(id) {
+    async getUser(id: string) {
       try {
         const user = await UserService.getUserById(id)
         if (!user) return null
@@ -52,7 +52,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async getUserByEmail(email) {
+    async getUserByEmail(email: string) {
       try {
         const user = await UserService.getUserByEmail(email)
         if (!user) return null
@@ -70,7 +70,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async getUserByAccount({ provider, providerAccountId }) {
+    async getUserByAccount({ provider, providerAccountId }: { provider: string; providerAccountId: string }) {
       try {
         const accounts = await AccountService.getAllAccounts()
         const account = accounts.find(
@@ -95,12 +95,12 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async updateUser(user) {
+    async updateUser(user: Partial<AdapterUser> & Pick<AdapterUser, "id">) {
       try {
         const updatedUser = await UserService.updateUser(user.id, {
           name: user.name || undefined,
           email: user.email || undefined,
-          email_verified: user.emailVerified ? toMySQLDateTime(user.emailVerified) : null,
+          email_verified: user.emailVerified ? toMySQLDateTime(user.emailVerified) : undefined,
           image: user.image || undefined,
         })
         
@@ -119,7 +119,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async deleteUser(userId) {
+    async deleteUser(userId: string) {
       try {
         // Delete user password if it exists
         await CredentialsService.deletePassword(userId)
@@ -131,7 +131,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async linkAccount(account) {
+    async linkAccount(account: AdapterAccount) {
       try {
         const createdAccount = await AccountService.createAccount({
           user_id: account.userId,
@@ -167,7 +167,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async unlinkAccount({ provider, providerAccountId }) {
+    async unlinkAccount({ provider, providerAccountId }: { provider: string; providerAccountId: string }) {
       try {
         const accounts = await AccountService.getAllAccounts()
         const account = accounts.find(
@@ -185,7 +185,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async createSession(session) {
+    async createSession(session: { sessionToken: string; userId: string; expires: Date }) {
       console.log("🔵 [ADAPTER] createSession method called!");
       try {
         console.log("🔵 [ADAPTER] createSession called with:", {
@@ -214,7 +214,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async getSessionAndUser(sessionToken) {
+    async getSessionAndUser(sessionToken: string) {
       console.log("🔵 [ADAPTER] getSessionAndUser called with token:", sessionToken.substring(0, 20) + "...");
       try {
         const session = await SessionService.getSessionByToken(sessionToken)
@@ -245,13 +245,14 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async updateSession(session) {
+    async updateSession(session: Partial<AdapterSession> & Pick<AdapterSession, "sessionToken">) {
       try {
         const sessions = await SessionService.getAllSessions()
         const existingSession = sessions.find(s => s.session_token === session.sessionToken)
         
         if (!existingSession) return null
-        
+        // Ensure session.expires is defined
+        if (!session.expires) throw new Error("Session expires is required")
         const updatedSession = await SessionService.updateSession(existingSession.id, {
           expires: toMySQLDateTime(session.expires),
         })
@@ -269,7 +270,7 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async deleteSession(sessionToken) {
+    async deleteSession(sessionToken: string) {
       try {
         const sessions = await SessionService.getAllSessions()
         const session = sessions.find(s => s.session_token === sessionToken)
@@ -285,12 +286,14 @@ export function CustomAdapter(): Adapter {
       }
     },
 
-    async createVerificationToken(token) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async createVerificationToken(_token: VerificationToken) {
       // Email verification is disabled
       return null
     },
 
-    async useVerificationToken(token) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async useVerificationToken(_params: { identifier: string; token: string }) {
       // Email verification is disabled
       return null
     },

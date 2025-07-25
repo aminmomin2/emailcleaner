@@ -29,9 +29,9 @@ export async function testConnection() {
 }
 
 // Execute a query with parameters
-export async function executeQuery<T = any>(
+export async function executeQuery<T = unknown>(
   query: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T[]> {
   try {
     const [rows] = await pool.execute(query, params);
@@ -43,9 +43,9 @@ export async function executeQuery<T = any>(
 }
 
 // Execute a single query (for INSERT, UPDATE, DELETE)
-export async function executeSingleQuery<T = any>(
+export async function executeSingleQuery<T = unknown>(
   query: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T> {
   try {
     const [result] = await pool.execute(query, params);
@@ -57,9 +57,9 @@ export async function executeSingleQuery<T = any>(
 }
 
 // Get a single row
-export async function getSingleRow<T = any>(
+export async function getSingleRow<T = unknown>(
   query: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T | null> {
   try {
     const [rows] = await pool.execute(query, params);

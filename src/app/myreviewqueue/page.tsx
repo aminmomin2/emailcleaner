@@ -9,6 +9,17 @@ import Tooltip from "@/components/ui/Tooltip";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
+// Add CleanupSuggestion type
+interface CleanupSuggestion {
+  emailId: string;
+  providerEmailId: string;
+  from: string;
+  subject: string;
+  snippet: string;
+  reason: string;
+  suggestedAction: "archive" | "trash" | "delete_permanently";
+}
+
 const mockReviewItems = [
   {
     id: "1",
@@ -47,9 +58,82 @@ export default function MyReviewQueuePage() {
   const [items, setItems] = useState(mockReviewItems);
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down' | null>>({});
 
+  // Email Cleaner state
+  const [suggestions, setSuggestions] = useState<CleanupSuggestion[]>([]);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [ignored, setIgnored] = useState<Set<string>>(new Set());
+  const [generating, setGenerating] = useState(false);
+
   useEffect(() => {
     requireAuth();
   }, [requireAuth]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    loadSuggestions();
+  }, [isAuthenticated]);
+
+  const loadSuggestions = () => {
+    setCleanupLoading(true);
+    fetch("/api/ai/suggest-cleanups")
+      .then((res) => res.json())
+      .then((data) => {
+        setSuggestions(data.suggestions || []);
+        setCleanupLoading(false);
+      })
+      .catch((err) => {
+        setCleanupError(err instanceof Error ? err.message : String(err));
+        setCleanupLoading(false);
+      });
+  };
+
+  const generateSuggestions = async () => {
+    setGenerating(true);
+    setCleanupError(null);
+    try {
+      const response = await fetch("/api/ai/generate-cleanups", {
+        method: "POST",
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Reload suggestions after generating new ones
+        await loadSuggestions();
+        alert(`Generated ${data.count} new suggestions!`);
+      } else {
+        throw new Error(data.message || 'Failed to generate suggestions');
+      }
+    } catch (err) {
+      setCleanupError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleAction = async (emailId: string, action: "archive" | "trash" | "delete_permanently") => {
+    setActionLoading(emailId + action);
+    try {
+      const res = await fetch("/api/ai/execute-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId, action }),
+      });
+      if (!res.ok) throw new Error("Failed to execute action");
+      setSuggestions((prev) => prev.filter((s) => s.emailId !== emailId));
+    } catch (err) {
+      alert("Error: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleIgnore = (emailId: string) => {
+    setIgnored((prev) => new Set([...prev, emailId]));
+  };
+
+  // TODO: Implement Never Clean From This Sender (preference mutation)
 
   // Debug logging
   console.log({ isAuthenticated, isLoading, user, session, error });
@@ -65,12 +149,85 @@ export default function MyReviewQueuePage() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const visibleSuggestions = suggestions.filter((s) => !ignored.has(s.emailId));
+
   return (
     <>
       <div style={{ background: '#f8f8f8', color: '#333', padding: '1rem', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: 4 }}>
         <strong>Debug Info:</strong>
         <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{JSON.stringify({ isAuthenticated, isLoading, user, session, error }, null, 2)}</pre>
       </div>
+      {/* Email Cleaner Suggestions Section */}
+      <Container>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Review Inbox Cleanup Suggestions</h1>
+          <Button
+            variant="primary"
+            size="md"
+            loading={generating}
+            onClick={generateSuggestions}
+            disabled={generating}
+          >
+            {generating ? 'Generating...' : 'Generate New Suggestions'}
+          </Button>
+        </div>
+        {cleanupError && <div className="text-red-500 mb-4">{cleanupError}</div>}
+        {cleanupLoading ? (
+          <div>Loading suggestions...</div>
+        ) : visibleSuggestions.length === 0 ? (
+          <div className="text-center text-[var(--text-secondary)] py-8 text-lg">
+            No suggestions to review right now!
+          </div>
+        ) : (
+          <div className="space-y-6 mb-10">
+            {visibleSuggestions.map((s) => (
+              <Card key={s.emailId} variant="elevated" padding="md">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg mb-1">{s.subject}</div>
+                    <div className="text-sm text-[var(--text-secondary)] mb-1">From: {s.from}</div>
+                    <div className="text-sm text-[var(--text-secondary)] mb-1">{s.snippet}</div>
+                    <div className="text-xs text-[var(--text-secondary)] italic mb-2">Reason: {s.reason}</div>
+                    <div className="text-xs text-[var(--primary)]">Suggested: {s.suggestedAction}</div>
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-[180px]">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      loading={actionLoading === s.emailId + "archive"}
+                      onClick={() => handleAction(s.emailId, "archive")}
+                    >
+                      Archive
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      loading={actionLoading === s.emailId + "trash"}
+                      onClick={() => handleAction(s.emailId, "trash")}
+                    >
+                      Trash
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleIgnore(s.emailId)}
+                    >
+                      Ignore
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                    >
+                      Never clean from this sender
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </Container>
       <Container>
         <div className="flex items-center mb-8">
           <h1 className="text-3xl font-bold text-[var(--text-main)] mr-4">My Review Queue</h1>

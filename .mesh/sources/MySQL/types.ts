@@ -34,12 +34,16 @@ export type Scalars = {
 export type Query = {
   accounts?: Maybe<Array<Maybe<accounts>>>;
   count_accounts?: Maybe<Scalars['Int']['output']>;
+  cleanup_suggestions?: Maybe<Array<Maybe<cleanup_suggestions>>>;
+  count_cleanup_suggestions?: Maybe<Scalars['Int']['output']>;
   sessions?: Maybe<Array<Maybe<sessions>>>;
   count_sessions?: Maybe<Scalars['Int']['output']>;
   user_calendar_events?: Maybe<Array<Maybe<user_calendar_events>>>;
   count_user_calendar_events?: Maybe<Scalars['Int']['output']>;
   user_emails?: Maybe<Array<Maybe<user_emails>>>;
   count_user_emails?: Maybe<Scalars['Int']['output']>;
+  user_preferences?: Maybe<Array<Maybe<user_preferences>>>;
+  count_user_preferences?: Maybe<Scalars['Int']['output']>;
   users?: Maybe<Array<Maybe<users>>>;
   count_users?: Maybe<Scalars['Int']['output']>;
 };
@@ -55,6 +59,19 @@ export type QueryaccountsArgs = {
 
 export type Querycount_accountsArgs = {
   where?: InputMaybe<accounts_WhereInput>;
+};
+
+
+export type Querycleanup_suggestionsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
+  orderBy?: InputMaybe<cleanup_suggestions_OrderByInput>;
+};
+
+
+export type Querycount_cleanup_suggestionsArgs = {
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
 };
 
 
@@ -94,6 +111,19 @@ export type Queryuser_emailsArgs = {
 
 export type Querycount_user_emailsArgs = {
   where?: InputMaybe<user_emails_WhereInput>;
+};
+
+
+export type Queryuser_preferencesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<user_preferences_WhereInput>;
+  orderBy?: InputMaybe<user_preferences_OrderByInput>;
+};
+
+
+export type Querycount_user_preferencesArgs = {
+  where?: InputMaybe<user_preferences_WhereInput>;
 };
 
 
@@ -164,10 +194,13 @@ export type users = {
   updated_at?: Maybe<Scalars['Timestamp']['output']>;
   /** Last time user data was polled for new emails/events */
   last_synced_at?: Maybe<Scalars['DateTime']['output']>;
+  has_synced?: Maybe<Scalars['Int']['output']>;
   accounts?: Maybe<Array<Maybe<accounts>>>;
+  cleanup_suggestions?: Maybe<Array<Maybe<cleanup_suggestions>>>;
   sessions?: Maybe<Array<Maybe<sessions>>>;
   user_calendar_events?: Maybe<Array<Maybe<user_calendar_events>>>;
   user_emails?: Maybe<Array<Maybe<user_emails>>>;
+  user_preferences?: Maybe<Array<Maybe<user_preferences>>>;
 };
 
 
@@ -176,6 +209,14 @@ export type usersaccountsArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<accounts_WhereInput>;
   orderBy?: InputMaybe<accounts_OrderByInput>;
+};
+
+
+export type userscleanup_suggestionsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
+  orderBy?: InputMaybe<cleanup_suggestions_OrderByInput>;
 };
 
 
@@ -200,6 +241,14 @@ export type usersuser_emailsArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<user_emails_WhereInput>;
   orderBy?: InputMaybe<user_emails_OrderByInput>;
+};
+
+
+export type usersuser_preferencesArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<user_preferences_WhereInput>;
+  orderBy?: InputMaybe<user_preferences_OrderByInput>;
 };
 
 export type accounts_WhereInput = {
@@ -264,6 +313,291 @@ export type OrderBy =
   | 'asc'
   | 'desc';
 
+export type cleanup_suggestions = {
+  /** Unique ID for the suggestion (UUID) */
+  id: Scalars['String']['output'];
+  /** Foreign key linking to the users table */
+  user_id: Scalars['String']['output'];
+  /** Foreign key linking to the user_emails table */
+  email_id: Scalars['String']['output'];
+  /** The email's ID from Google/Outlook */
+  provider_email_id: Scalars['String']['output'];
+  /** Sender's email address */
+  from_email?: Maybe<Scalars['String']['output']>;
+  /** Email subject line */
+  subject?: Maybe<Scalars['String']['output']>;
+  /** A short preview/snippet of the email body */
+  snippet?: Maybe<Scalars['String']['output']>;
+  /** Reason for the cleanup suggestion */
+  reason: Scalars['String']['output'];
+  /** Suggested cleanup action */
+  suggested_action: cleanup_suggestions_suggested_action;
+  /** Current status of the suggestion */
+  status?: Maybe<cleanup_suggestions_status>;
+  /** Timestamp when the suggestion was created */
+  created_at?: Maybe<Scalars['Timestamp']['output']>;
+  /** Timestamp when the suggestion was last updated */
+  updated_at?: Maybe<Scalars['Timestamp']['output']>;
+  user_emails?: Maybe<Array<Maybe<user_emails>>>;
+  users?: Maybe<Array<Maybe<users>>>;
+};
+
+
+export type cleanup_suggestionsuser_emailsArgs = {
+  where?: InputMaybe<user_emails_WhereInput>;
+  orderBy?: InputMaybe<user_emails_OrderByInput>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type cleanup_suggestionsusersArgs = {
+  where?: InputMaybe<users_WhereInput>;
+  orderBy?: InputMaybe<users_OrderByInput>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type cleanup_suggestions_suggested_action =
+  | 'archive'
+  | 'trash'
+  | 'delete_permanently';
+
+export type cleanup_suggestions_status =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'executed';
+
+export type user_emails = {
+  /** Your internal unique ID for the email (UUID) */
+  id: Scalars['String']['output'];
+  /** Foreign key linking to the users table */
+  user_id: Scalars['String']['output'];
+  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
+  provider_email_id: Scalars['String']['output'];
+  /** The thread ID from the provider */
+  thread_id?: Maybe<Scalars['String']['output']>;
+  /** Sender's email address */
+  from_email?: Maybe<Scalars['String']['output']>;
+  /** JSON array of recipient email addresses */
+  to_emails?: Maybe<Scalars['JSON']['output']>;
+  /** JSON array of CC recipient email addresses */
+  cc_emails?: Maybe<Scalars['JSON']['output']>;
+  /** JSON array of BCC recipient email addresses */
+  bcc_emails?: Maybe<Scalars['JSON']['output']>;
+  /** Email subject line */
+  subject?: Maybe<Scalars['String']['output']>;
+  /** A short preview/snippet of the email body */
+  snippet?: Maybe<Scalars['String']['output']>;
+  /** The internal date/time from the email provider */
+  internal_date?: Maybe<Scalars['DateTime']['output']>;
+  /** Timestamp when your system ingested this email */
+  received_at?: Maybe<Scalars['Timestamp']['output']>;
+  /** Whether the email is marked as read */
+  is_read?: Maybe<Scalars['Int']['output']>;
+  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
+  label_ids?: Maybe<Scalars['JSON']['output']>;
+  /** Current status of the email in the mailbox */
+  status?: Maybe<user_emails_status>;
+  /** SHA256 hash of the full email body to detect changes (optional) */
+  raw_body_hash?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['Timestamp']['output']>;
+  updated_at?: Maybe<Scalars['Timestamp']['output']>;
+  cleanup_suggestions?: Maybe<Array<Maybe<cleanup_suggestions>>>;
+  users?: Maybe<Array<Maybe<users>>>;
+};
+
+
+export type user_emailscleanup_suggestionsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
+  orderBy?: InputMaybe<cleanup_suggestions_OrderByInput>;
+};
+
+
+export type user_emailsusersArgs = {
+  where?: InputMaybe<users_WhereInput>;
+  orderBy?: InputMaybe<users_OrderByInput>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type user_emails_status =
+  | 'active'
+  | 'archived'
+  | 'trashed'
+  | 'deleted';
+
+export type cleanup_suggestions_WhereInput = {
+  /** Unique ID for the suggestion (UUID) */
+  id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the user_emails table */
+  email_id?: InputMaybe<Scalars['String']['input']>;
+  /** The email's ID from Google/Outlook */
+  provider_email_id?: InputMaybe<Scalars['String']['input']>;
+  /** Sender's email address */
+  from_email?: InputMaybe<Scalars['String']['input']>;
+  /** Email subject line */
+  subject?: InputMaybe<Scalars['String']['input']>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<Scalars['String']['input']>;
+  /** Reason for the cleanup suggestion */
+  reason?: InputMaybe<Scalars['String']['input']>;
+  /** Suggested cleanup action */
+  suggested_action?: InputMaybe<Scalars['String']['input']>;
+  /** Current status of the suggestion */
+  status?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when the suggestion was created */
+  created_at?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when the suggestion was last updated */
+  updated_at?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type cleanup_suggestions_OrderByInput = {
+  /** Unique ID for the suggestion (UUID) */
+  id?: InputMaybe<OrderBy>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<OrderBy>;
+  /** Foreign key linking to the user_emails table */
+  email_id?: InputMaybe<OrderBy>;
+  /** The email's ID from Google/Outlook */
+  provider_email_id?: InputMaybe<OrderBy>;
+  /** Sender's email address */
+  from_email?: InputMaybe<OrderBy>;
+  /** Email subject line */
+  subject?: InputMaybe<OrderBy>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<OrderBy>;
+  /** Reason for the cleanup suggestion */
+  reason?: InputMaybe<OrderBy>;
+  /** Suggested cleanup action */
+  suggested_action?: InputMaybe<OrderBy>;
+  /** Current status of the suggestion */
+  status?: InputMaybe<OrderBy>;
+  /** Timestamp when the suggestion was created */
+  created_at?: InputMaybe<OrderBy>;
+  /** Timestamp when the suggestion was last updated */
+  updated_at?: InputMaybe<OrderBy>;
+};
+
+export type users_WhereInput = {
+  /** Unique user ID (UUID) generated by NextAuth.js for your application's internal use */
+  id?: InputMaybe<Scalars['String']['input']>;
+  /** User's display name, typically from the OAuth provider (e.g., Google) */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** User's primary email address, typically from the OAuth provider (e.g., Google) */
+  email?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when the email was verified (e.g., via OAuth login) */
+  email_verified?: InputMaybe<Scalars['String']['input']>;
+  /** URL to user's profile picture from the OAuth provider */
+  image?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when the user record was created */
+  created_at?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when the user record was last updated */
+  updated_at?: InputMaybe<Scalars['String']['input']>;
+  /** Last time user data was polled for new emails/events */
+  last_synced_at?: InputMaybe<Scalars['String']['input']>;
+  has_synced?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type users_OrderByInput = {
+  /** Unique user ID (UUID) generated by NextAuth.js for your application's internal use */
+  id?: InputMaybe<OrderBy>;
+  /** User's display name, typically from the OAuth provider (e.g., Google) */
+  name?: InputMaybe<OrderBy>;
+  /** User's primary email address, typically from the OAuth provider (e.g., Google) */
+  email?: InputMaybe<OrderBy>;
+  /** Timestamp when the email was verified (e.g., via OAuth login) */
+  email_verified?: InputMaybe<OrderBy>;
+  /** URL to user's profile picture from the OAuth provider */
+  image?: InputMaybe<OrderBy>;
+  /** Timestamp when the user record was created */
+  created_at?: InputMaybe<OrderBy>;
+  /** Timestamp when the user record was last updated */
+  updated_at?: InputMaybe<OrderBy>;
+  /** Last time user data was polled for new emails/events */
+  last_synced_at?: InputMaybe<OrderBy>;
+  has_synced?: InputMaybe<OrderBy>;
+};
+
+export type user_emails_WhereInput = {
+  /** Your internal unique ID for the email (UUID) */
+  id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
+  provider_email_id?: InputMaybe<Scalars['String']['input']>;
+  /** The thread ID from the provider */
+  thread_id?: InputMaybe<Scalars['String']['input']>;
+  /** Sender's email address */
+  from_email?: InputMaybe<Scalars['String']['input']>;
+  /** JSON array of recipient email addresses */
+  to_emails?: InputMaybe<Scalars['String']['input']>;
+  /** JSON array of CC recipient email addresses */
+  cc_emails?: InputMaybe<Scalars['String']['input']>;
+  /** JSON array of BCC recipient email addresses */
+  bcc_emails?: InputMaybe<Scalars['String']['input']>;
+  /** Email subject line */
+  subject?: InputMaybe<Scalars['String']['input']>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<Scalars['String']['input']>;
+  /** The internal date/time from the email provider */
+  internal_date?: InputMaybe<Scalars['String']['input']>;
+  /** Timestamp when your system ingested this email */
+  received_at?: InputMaybe<Scalars['String']['input']>;
+  /** Whether the email is marked as read */
+  is_read?: InputMaybe<Scalars['String']['input']>;
+  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
+  label_ids?: InputMaybe<Scalars['String']['input']>;
+  /** Current status of the email in the mailbox */
+  status?: InputMaybe<Scalars['String']['input']>;
+  /** SHA256 hash of the full email body to detect changes (optional) */
+  raw_body_hash?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['String']['input']>;
+  updated_at?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type user_emails_OrderByInput = {
+  /** Your internal unique ID for the email (UUID) */
+  id?: InputMaybe<OrderBy>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<OrderBy>;
+  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
+  provider_email_id?: InputMaybe<OrderBy>;
+  /** The thread ID from the provider */
+  thread_id?: InputMaybe<OrderBy>;
+  /** Sender's email address */
+  from_email?: InputMaybe<OrderBy>;
+  /** JSON array of recipient email addresses */
+  to_emails?: InputMaybe<OrderBy>;
+  /** JSON array of CC recipient email addresses */
+  cc_emails?: InputMaybe<OrderBy>;
+  /** JSON array of BCC recipient email addresses */
+  bcc_emails?: InputMaybe<OrderBy>;
+  /** Email subject line */
+  subject?: InputMaybe<OrderBy>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<OrderBy>;
+  /** The internal date/time from the email provider */
+  internal_date?: InputMaybe<OrderBy>;
+  /** Timestamp when your system ingested this email */
+  received_at?: InputMaybe<OrderBy>;
+  /** Whether the email is marked as read */
+  is_read?: InputMaybe<OrderBy>;
+  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
+  label_ids?: InputMaybe<OrderBy>;
+  /** Current status of the email in the mailbox */
+  status?: InputMaybe<OrderBy>;
+  /** SHA256 hash of the full email body to detect changes (optional) */
+  raw_body_hash?: InputMaybe<OrderBy>;
+  created_at?: InputMaybe<OrderBy>;
+  updated_at?: InputMaybe<OrderBy>;
+};
+
 export type sessions = {
   /** Unique ID for the session record (UUID) */
   id: Scalars['String']['output'];
@@ -284,44 +618,6 @@ export type sessionsusersArgs = {
   orderBy?: InputMaybe<users_OrderByInput>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-};
-
-export type users_WhereInput = {
-  /** Unique user ID (UUID) generated by NextAuth.js for your application's internal use */
-  id?: InputMaybe<Scalars['String']['input']>;
-  /** User's display name, typically from the OAuth provider (e.g., Google) */
-  name?: InputMaybe<Scalars['String']['input']>;
-  /** User's primary email address, typically from the OAuth provider (e.g., Google) */
-  email?: InputMaybe<Scalars['String']['input']>;
-  /** Timestamp when the email was verified (e.g., via OAuth login) */
-  email_verified?: InputMaybe<Scalars['String']['input']>;
-  /** URL to user's profile picture from the OAuth provider */
-  image?: InputMaybe<Scalars['String']['input']>;
-  /** Timestamp when the user record was created */
-  created_at?: InputMaybe<Scalars['String']['input']>;
-  /** Timestamp when the user record was last updated */
-  updated_at?: InputMaybe<Scalars['String']['input']>;
-  /** Last time user data was polled for new emails/events */
-  last_synced_at?: InputMaybe<Scalars['String']['input']>;
-};
-
-export type users_OrderByInput = {
-  /** Unique user ID (UUID) generated by NextAuth.js for your application's internal use */
-  id?: InputMaybe<OrderBy>;
-  /** User's display name, typically from the OAuth provider (e.g., Google) */
-  name?: InputMaybe<OrderBy>;
-  /** User's primary email address, typically from the OAuth provider (e.g., Google) */
-  email?: InputMaybe<OrderBy>;
-  /** Timestamp when the email was verified (e.g., via OAuth login) */
-  email_verified?: InputMaybe<OrderBy>;
-  /** URL to user's profile picture from the OAuth provider */
-  image?: InputMaybe<OrderBy>;
-  /** Timestamp when the user record was created */
-  created_at?: InputMaybe<OrderBy>;
-  /** Timestamp when the user record was last updated */
-  updated_at?: InputMaybe<OrderBy>;
-  /** Last time user data was polled for new emails/events */
-  last_synced_at?: InputMaybe<OrderBy>;
 };
 
 export type sessions_WhereInput = {
@@ -457,128 +753,50 @@ export type user_calendar_events_OrderByInput = {
   updated_at?: InputMaybe<OrderBy>;
 };
 
-export type user_emails = {
-  /** Your internal unique ID for the email (UUID) */
+export type user_preferences = {
+  /** Unique ID for the preference record (UUID) */
   id: Scalars['String']['output'];
   /** Foreign key linking to the users table */
   user_id: Scalars['String']['output'];
-  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
-  provider_email_id: Scalars['String']['output'];
-  /** The thread ID from the provider */
-  thread_id?: Maybe<Scalars['String']['output']>;
-  /** Sender's email address */
-  from_email?: Maybe<Scalars['String']['output']>;
-  /** JSON array of recipient email addresses */
-  to_emails?: Maybe<Scalars['JSON']['output']>;
-  /** JSON array of CC recipient email addresses */
-  cc_emails?: Maybe<Scalars['JSON']['output']>;
-  /** JSON array of BCC recipient email addresses */
-  bcc_emails?: Maybe<Scalars['JSON']['output']>;
-  /** Email subject line */
-  subject?: Maybe<Scalars['String']['output']>;
-  /** A short preview/snippet of the email body */
-  snippet?: Maybe<Scalars['String']['output']>;
-  /** The internal date/time from the email provider */
-  internal_date?: Maybe<Scalars['DateTime']['output']>;
-  /** Timestamp when your system ingested this email */
-  received_at?: Maybe<Scalars['Timestamp']['output']>;
-  /** Whether the email is marked as read */
-  is_read?: Maybe<Scalars['Int']['output']>;
-  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
-  label_ids?: Maybe<Scalars['JSON']['output']>;
-  /** Current status of the email in the mailbox */
-  status?: Maybe<user_emails_status>;
-  /** SHA256 hash of the full email body to detect changes (optional) */
-  raw_body_hash?: Maybe<Scalars['String']['output']>;
+  /** Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders') */
+  preference_key: Scalars['String']['output'];
+  /** Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]') */
+  preference_value?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['Timestamp']['output']>;
   updated_at?: Maybe<Scalars['Timestamp']['output']>;
   users?: Maybe<Array<Maybe<users>>>;
 };
 
 
-export type user_emailsusersArgs = {
+export type user_preferencesusersArgs = {
   where?: InputMaybe<users_WhereInput>;
   orderBy?: InputMaybe<users_OrderByInput>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type user_emails_status =
-  | 'active'
-  | 'archived'
-  | 'trashed'
-  | 'deleted';
-
-export type user_emails_WhereInput = {
-  /** Your internal unique ID for the email (UUID) */
+export type user_preferences_WhereInput = {
+  /** Unique ID for the preference record (UUID) */
   id?: InputMaybe<Scalars['String']['input']>;
   /** Foreign key linking to the users table */
   user_id?: InputMaybe<Scalars['String']['input']>;
-  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
-  provider_email_id?: InputMaybe<Scalars['String']['input']>;
-  /** The thread ID from the provider */
-  thread_id?: InputMaybe<Scalars['String']['input']>;
-  /** Sender's email address */
-  from_email?: InputMaybe<Scalars['String']['input']>;
-  /** JSON array of recipient email addresses */
-  to_emails?: InputMaybe<Scalars['String']['input']>;
-  /** JSON array of CC recipient email addresses */
-  cc_emails?: InputMaybe<Scalars['String']['input']>;
-  /** JSON array of BCC recipient email addresses */
-  bcc_emails?: InputMaybe<Scalars['String']['input']>;
-  /** Email subject line */
-  subject?: InputMaybe<Scalars['String']['input']>;
-  /** A short preview/snippet of the email body */
-  snippet?: InputMaybe<Scalars['String']['input']>;
-  /** The internal date/time from the email provider */
-  internal_date?: InputMaybe<Scalars['String']['input']>;
-  /** Timestamp when your system ingested this email */
-  received_at?: InputMaybe<Scalars['String']['input']>;
-  /** Whether the email is marked as read */
-  is_read?: InputMaybe<Scalars['String']['input']>;
-  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
-  label_ids?: InputMaybe<Scalars['String']['input']>;
-  /** Current status of the email in the mailbox */
-  status?: InputMaybe<Scalars['String']['input']>;
-  /** SHA256 hash of the full email body to detect changes (optional) */
-  raw_body_hash?: InputMaybe<Scalars['String']['input']>;
+  /** Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders') */
+  preference_key?: InputMaybe<Scalars['String']['input']>;
+  /** Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]') */
+  preference_value?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['String']['input']>;
   updated_at?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type user_emails_OrderByInput = {
-  /** Your internal unique ID for the email (UUID) */
+export type user_preferences_OrderByInput = {
+  /** Unique ID for the preference record (UUID) */
   id?: InputMaybe<OrderBy>;
   /** Foreign key linking to the users table */
   user_id?: InputMaybe<OrderBy>;
-  /** The email's ID from Google/Outlook (e.g., Gmail's message ID) */
-  provider_email_id?: InputMaybe<OrderBy>;
-  /** The thread ID from the provider */
-  thread_id?: InputMaybe<OrderBy>;
-  /** Sender's email address */
-  from_email?: InputMaybe<OrderBy>;
-  /** JSON array of recipient email addresses */
-  to_emails?: InputMaybe<OrderBy>;
-  /** JSON array of CC recipient email addresses */
-  cc_emails?: InputMaybe<OrderBy>;
-  /** JSON array of BCC recipient email addresses */
-  bcc_emails?: InputMaybe<OrderBy>;
-  /** Email subject line */
-  subject?: InputMaybe<OrderBy>;
-  /** A short preview/snippet of the email body */
-  snippet?: InputMaybe<OrderBy>;
-  /** The internal date/time from the email provider */
-  internal_date?: InputMaybe<OrderBy>;
-  /** Timestamp when your system ingested this email */
-  received_at?: InputMaybe<OrderBy>;
-  /** Whether the email is marked as read */
-  is_read?: InputMaybe<OrderBy>;
-  /** JSON array of label IDs (e.g., 'INBOX', 'SENT', 'STARRED') */
-  label_ids?: InputMaybe<OrderBy>;
-  /** Current status of the email in the mailbox */
-  status?: InputMaybe<OrderBy>;
-  /** SHA256 hash of the full email body to detect changes (optional) */
-  raw_body_hash?: InputMaybe<OrderBy>;
+  /** Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders') */
+  preference_key?: InputMaybe<OrderBy>;
+  /** Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]') */
+  preference_value?: InputMaybe<OrderBy>;
   created_at?: InputMaybe<OrderBy>;
   updated_at?: InputMaybe<OrderBy>;
 };
@@ -587,6 +805,9 @@ export type Mutation = {
   insert_accounts?: Maybe<accounts>;
   update_accounts?: Maybe<accounts>;
   delete_accounts?: Maybe<Scalars['Boolean']['output']>;
+  insert_cleanup_suggestions?: Maybe<cleanup_suggestions>;
+  update_cleanup_suggestions?: Maybe<cleanup_suggestions>;
+  delete_cleanup_suggestions?: Maybe<Scalars['Boolean']['output']>;
   insert_sessions?: Maybe<sessions>;
   update_sessions?: Maybe<sessions>;
   delete_sessions?: Maybe<Scalars['Boolean']['output']>;
@@ -596,6 +817,9 @@ export type Mutation = {
   insert_user_emails?: Maybe<user_emails>;
   update_user_emails?: Maybe<user_emails>;
   delete_user_emails?: Maybe<Scalars['Boolean']['output']>;
+  insert_user_preferences?: Maybe<user_preferences>;
+  update_user_preferences?: Maybe<user_preferences>;
+  delete_user_preferences?: Maybe<Scalars['Boolean']['output']>;
   insert_users?: Maybe<users>;
   update_users?: Maybe<users>;
   delete_users?: Maybe<Scalars['Boolean']['output']>;
@@ -615,6 +839,22 @@ export type Mutationupdate_accountsArgs = {
 
 export type Mutationdelete_accountsArgs = {
   where?: InputMaybe<accounts_WhereInput>;
+};
+
+
+export type Mutationinsert_cleanup_suggestionsArgs = {
+  cleanup_suggestions: cleanup_suggestions_InsertInput;
+};
+
+
+export type Mutationupdate_cleanup_suggestionsArgs = {
+  cleanup_suggestions: cleanup_suggestions_UpdateInput;
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
+};
+
+
+export type Mutationdelete_cleanup_suggestionsArgs = {
+  where?: InputMaybe<cleanup_suggestions_WhereInput>;
 };
 
 
@@ -663,6 +903,22 @@ export type Mutationupdate_user_emailsArgs = {
 
 export type Mutationdelete_user_emailsArgs = {
   where?: InputMaybe<user_emails_WhereInput>;
+};
+
+
+export type Mutationinsert_user_preferencesArgs = {
+  user_preferences: user_preferences_InsertInput;
+};
+
+
+export type Mutationupdate_user_preferencesArgs = {
+  user_preferences: user_preferences_UpdateInput;
+  where?: InputMaybe<user_preferences_WhereInput>;
+};
+
+
+export type Mutationdelete_user_preferencesArgs = {
+  where?: InputMaybe<user_preferences_WhereInput>;
 };
 
 
@@ -736,6 +992,60 @@ export type accounts_UpdateInput = {
   /** For OAuth 2.0 state management */
   session_state?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['Timestamp']['input']>;
+  updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
+export type cleanup_suggestions_InsertInput = {
+  /** Unique ID for the suggestion (UUID) */
+  id: Scalars['String']['input'];
+  /** Foreign key linking to the users table */
+  user_id: Scalars['String']['input'];
+  /** Foreign key linking to the user_emails table */
+  email_id: Scalars['String']['input'];
+  /** The email's ID from Google/Outlook */
+  provider_email_id: Scalars['String']['input'];
+  /** Sender's email address */
+  from_email?: InputMaybe<Scalars['String']['input']>;
+  /** Email subject line */
+  subject?: InputMaybe<Scalars['String']['input']>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<Scalars['String']['input']>;
+  /** Reason for the cleanup suggestion */
+  reason: Scalars['String']['input'];
+  /** Suggested cleanup action */
+  suggested_action: cleanup_suggestions_suggested_action;
+  /** Current status of the suggestion */
+  status?: InputMaybe<cleanup_suggestions_status>;
+  /** Timestamp when the suggestion was created */
+  created_at?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Timestamp when the suggestion was last updated */
+  updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
+export type cleanup_suggestions_UpdateInput = {
+  /** Unique ID for the suggestion (UUID) */
+  id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the user_emails table */
+  email_id?: InputMaybe<Scalars['String']['input']>;
+  /** The email's ID from Google/Outlook */
+  provider_email_id?: InputMaybe<Scalars['String']['input']>;
+  /** Sender's email address */
+  from_email?: InputMaybe<Scalars['String']['input']>;
+  /** Email subject line */
+  subject?: InputMaybe<Scalars['String']['input']>;
+  /** A short preview/snippet of the email body */
+  snippet?: InputMaybe<Scalars['String']['input']>;
+  /** Reason for the cleanup suggestion */
+  reason?: InputMaybe<Scalars['String']['input']>;
+  /** Suggested cleanup action */
+  suggested_action?: InputMaybe<cleanup_suggestions_suggested_action>;
+  /** Current status of the suggestion */
+  status?: InputMaybe<cleanup_suggestions_status>;
+  /** Timestamp when the suggestion was created */
+  created_at?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Timestamp when the suggestion was last updated */
   updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
 };
 
@@ -901,6 +1211,32 @@ export type user_emails_UpdateInput = {
   updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
 };
 
+export type user_preferences_InsertInput = {
+  /** Unique ID for the preference record (UUID) */
+  id: Scalars['String']['input'];
+  /** Foreign key linking to the users table */
+  user_id: Scalars['String']['input'];
+  /** Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders') */
+  preference_key: Scalars['String']['input'];
+  /** Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]') */
+  preference_value?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['Timestamp']['input']>;
+  updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
+export type user_preferences_UpdateInput = {
+  /** Unique ID for the preference record (UUID) */
+  id?: InputMaybe<Scalars['String']['input']>;
+  /** Foreign key linking to the users table */
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  /** Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders') */
+  preference_key?: InputMaybe<Scalars['String']['input']>;
+  /** Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]') */
+  preference_value?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['Timestamp']['input']>;
+  updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
 export type users_InsertInput = {
   /** Unique user ID (UUID) generated by NextAuth.js for your application's internal use */
   id: Scalars['String']['input'];
@@ -918,6 +1254,7 @@ export type users_InsertInput = {
   updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
   /** Last time user data was polled for new emails/events */
   last_synced_at?: InputMaybe<Scalars['DateTime']['input']>;
+  has_synced?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type users_UpdateInput = {
@@ -937,6 +1274,7 @@ export type users_UpdateInput = {
   updated_at?: InputMaybe<Scalars['Timestamp']['input']>;
   /** Last time user data was polled for new emails/events */
   last_synced_at?: InputMaybe<Scalars['DateTime']['input']>;
+  has_synced?: InputMaybe<Scalars['Int']['input']>;
 };
 
   export type QuerySdk = {
@@ -944,6 +1282,10 @@ export type users_UpdateInput = {
   accounts: InContextSdkMethod<Query['accounts'], QueryaccountsArgs, MeshContext>,
   /** undefined **/
   count_accounts: InContextSdkMethod<Query['count_accounts'], Querycount_accountsArgs, MeshContext>,
+  /** undefined **/
+  cleanup_suggestions: InContextSdkMethod<Query['cleanup_suggestions'], Querycleanup_suggestionsArgs, MeshContext>,
+  /** undefined **/
+  count_cleanup_suggestions: InContextSdkMethod<Query['count_cleanup_suggestions'], Querycount_cleanup_suggestionsArgs, MeshContext>,
   /** undefined **/
   sessions: InContextSdkMethod<Query['sessions'], QuerysessionsArgs, MeshContext>,
   /** undefined **/
@@ -957,6 +1299,10 @@ export type users_UpdateInput = {
   /** undefined **/
   count_user_emails: InContextSdkMethod<Query['count_user_emails'], Querycount_user_emailsArgs, MeshContext>,
   /** undefined **/
+  user_preferences: InContextSdkMethod<Query['user_preferences'], Queryuser_preferencesArgs, MeshContext>,
+  /** undefined **/
+  count_user_preferences: InContextSdkMethod<Query['count_user_preferences'], Querycount_user_preferencesArgs, MeshContext>,
+  /** undefined **/
   users: InContextSdkMethod<Query['users'], QueryusersArgs, MeshContext>,
   /** undefined **/
   count_users: InContextSdkMethod<Query['count_users'], Querycount_usersArgs, MeshContext>
@@ -969,6 +1315,12 @@ export type users_UpdateInput = {
   update_accounts: InContextSdkMethod<Mutation['update_accounts'], Mutationupdate_accountsArgs, MeshContext>,
   /** undefined **/
   delete_accounts: InContextSdkMethod<Mutation['delete_accounts'], Mutationdelete_accountsArgs, MeshContext>,
+  /** undefined **/
+  insert_cleanup_suggestions: InContextSdkMethod<Mutation['insert_cleanup_suggestions'], Mutationinsert_cleanup_suggestionsArgs, MeshContext>,
+  /** undefined **/
+  update_cleanup_suggestions: InContextSdkMethod<Mutation['update_cleanup_suggestions'], Mutationupdate_cleanup_suggestionsArgs, MeshContext>,
+  /** undefined **/
+  delete_cleanup_suggestions: InContextSdkMethod<Mutation['delete_cleanup_suggestions'], Mutationdelete_cleanup_suggestionsArgs, MeshContext>,
   /** undefined **/
   insert_sessions: InContextSdkMethod<Mutation['insert_sessions'], Mutationinsert_sessionsArgs, MeshContext>,
   /** undefined **/
@@ -987,6 +1339,12 @@ export type users_UpdateInput = {
   update_user_emails: InContextSdkMethod<Mutation['update_user_emails'], Mutationupdate_user_emailsArgs, MeshContext>,
   /** undefined **/
   delete_user_emails: InContextSdkMethod<Mutation['delete_user_emails'], Mutationdelete_user_emailsArgs, MeshContext>,
+  /** undefined **/
+  insert_user_preferences: InContextSdkMethod<Mutation['insert_user_preferences'], Mutationinsert_user_preferencesArgs, MeshContext>,
+  /** undefined **/
+  update_user_preferences: InContextSdkMethod<Mutation['update_user_preferences'], Mutationupdate_user_preferencesArgs, MeshContext>,
+  /** undefined **/
+  delete_user_preferences: InContextSdkMethod<Mutation['delete_user_preferences'], Mutationdelete_user_preferencesArgs, MeshContext>,
   /** undefined **/
   insert_users: InContextSdkMethod<Mutation['insert_users'], Mutationinsert_usersArgs, MeshContext>,
   /** undefined **/

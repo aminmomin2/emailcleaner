@@ -2,8 +2,11 @@
 
 import Container from "@/components/ui/Container";
 import { request, gql, GraphQLClient } from 'graphql-request';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from "@/hooks/useAuth";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 
 const GET_USERS = gql`
   query GetUsers {
@@ -87,11 +90,25 @@ function UsersList() {
 }
 
 export default function Home() {
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
-
   const userId = (user as User | null)?.id;
+  const router = useRouter();
+
+  // Sync state
+  const [hasSynced, setHasSynced] = useState<boolean | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  // Fetch sync state on mount
+  useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      setHasSynced(null);
+      return;
+    }
+    fetch('/api/user/sync-state')
+      .then(res => res.json())
+      .then(data => setHasSynced(data.hasSynced))
+      .catch(() => setHasSynced(false));
+  }, [isAuthenticated, userId]);
 
   // Emails state
   const [emailsData, setEmailsData] = useState<{ userEmailsByUser: UserEmail[] } | null>(null);
@@ -103,102 +120,234 @@ export default function Home() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<Error | null>(null);
 
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoad = useRef(true);
+  const eventsPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const eventsInitialLoad = useRef(true);
+
+  // Helper function to compare emails by id
+  function areEmailsEqual(a: UserEmail[], b: UserEmail[]) {
+    if (a.length !== b.length) return false;
+    const aIds = a.map(e => e.id).sort();
+    const bIds = b.map(e => e.id).sort();
+    return aIds.every((id, i) => id === bIds[i]);
+  }
+
+  // Refactored email fetching logic with seamless polling
   useEffect(() => {
+    if (!hasSynced) return;
+    let isMounted = true;
+    const fetchEmails = (showLoading = false) => {
+      if (isAuthenticated && userId) {
+        const endpoint = `${window.location.origin}/api/graphql`;
+        const client = new GraphQLClient(endpoint);
+        if (showLoading) setEmailsLoading(true);
+        client.request<{ userEmailsByUser: UserEmail[] }>(
+          `query($userId: ID!) { userEmailsByUser(userId: $userId) { id fromEmail toEmails ccEmails bccEmails subject snippet internalDate isRead createdAt labelIds } }`,
+          { userId }
+        )
+          .then((data) => {
+            if (isMounted) {
+              if (!emailsData || !areEmailsEqual(data.userEmailsByUser, emailsData.userEmailsByUser)) {
+                setEmailsData(data);
+              }
+              if (showLoading) setEmailsLoading(false);
+            }
+          })
+          .catch((err: unknown) => {
+            if (isMounted) {
+              setEmailsError(err instanceof Error ? err : new Error(String(err)));
+              if (showLoading) setEmailsLoading(false);
+            }
+          });
+      }
+    };
     if (isAuthenticated && userId) {
-      const endpoint = `${window.location.origin}/api/graphql`;
-      const client = new GraphQLClient(endpoint);
-      // Debug log for emails request
-      console.log("Requesting emails with:", endpoint, userId);
-      // Fetch emails
-      setEmailsLoading(true);
-      client.request<{ userEmailsByUser: UserEmail[] }>(
-        `query($userId: ID!) { userEmailsByUser(userId: $userId) { id fromEmail toEmails ccEmails bccEmails subject snippet internalDate isRead createdAt labelIds } }`,
-        { userId }
-      )
-        .then((data) => {
-          setEmailsData(data);
-          setEmailsLoading(false);
-        })
-        .catch((err: unknown) => {
-          setEmailsError(err instanceof Error ? err : new Error(String(err)));
-          setEmailsLoading(false);
-          // Log full error stack
-          if (err instanceof Error) {
-            console.error('Emails request error:', err, err.stack);
-          } else {
-            console.error('Emails request error:', err);
-          }
-        });
-      // Debug log for events request
-      console.log("Requesting events with:", endpoint, userId);
-      // Fetch events
-      setEventsLoading(true);
-      client.request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
-        `query($userId: ID!) { userCalendarEventsByUser(userId: $userId) { id summary description startTime endTime location status createdAt } }`,
-        { userId }
-      )
-        .then((data) => {
-          setEventsData(data);
-          setEventsLoading(false);
-        })
-        .catch((err: unknown) => {
-          setEventsError(err instanceof Error ? err : new Error(String(err)));
-          setEventsLoading(false);
-          // Log full error stack
-          if (err instanceof Error) {
-            console.error('Events request error:', err, err.stack);
-          } else {
-            console.error('Events request error:', err);
-          }
-        });
-      // Plain fetch test for /api/graphql
-      fetch('/api/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: '{ __typename }' })
-      })
-        .then(res => res.json())
-        .then(data => console.log('Plain fetch result:', data))
-        .catch(err => console.error('Plain fetch error:', err, err.stack));
+      fetchEmails(true); // Initial fetch with loading
+      initialLoad.current = false;
+      pollingRef.current = setInterval(() => fetchEmails(false), 30000); // Poll every 30s, no loading
     } else {
       setEmailsData(null);
-      setEventsData(null);
+      initialLoad.current = true;
     }
-  }, [isAuthenticated, userId]);
+    return () => {
+      isMounted = false;
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userId, hasSynced]);
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncMessage(null);
-    try {
-      const res = await fetch("/api/sync", { method: "POST" });
-      if (res.ok) {
-        setSyncMessage("Sync complete!");
-        window.location.reload();
-      } else {
-        const data = await res.json();
-        setSyncMessage(data.error || "Sync failed");
+  // Refactored calendar events fetching logic with seamless polling
+  useEffect(() => {
+    if (!hasSynced) return;
+    let isMounted = true;
+    const fetchEvents = (showLoading = false) => {
+      if (isAuthenticated && userId) {
+        const endpoint = `${window.location.origin}/api/graphql`;
+        const client = new GraphQLClient(endpoint);
+        if (showLoading) setEventsLoading(true);
+        client.request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
+          `query($userId: ID!) { userCalendarEventsByUser(userId: $userId) { id summary description startTime endTime location status createdAt } }`,
+          { userId }
+        )
+          .then((data) => {
+            if (isMounted) {
+              if (!eventsData || data.userCalendarEventsByUser.length !== eventsData.userCalendarEventsByUser.length ||
+                data.userCalendarEventsByUser.some((event, idx) => event.id !== eventsData.userCalendarEventsByUser[idx]?.id)) {
+                setEventsData(data);
+              }
+              if (showLoading) setEventsLoading(false);
+            }
+          })
+          .catch((err: unknown) => {
+            if (isMounted) {
+              setEventsError(err instanceof Error ? err : new Error(String(err)));
+              if (showLoading) setEventsLoading(false);
+            }
+          });
       }
-    } catch {
-      setSyncMessage("Sync failed");
+    };
+    if (isAuthenticated && userId) {
+      fetchEvents(true); // Initial fetch with loading
+      eventsInitialLoad.current = false;
+      eventsPollingRef.current = setInterval(() => fetchEvents(false), 30000); // Poll every 30s, no loading
+    } else {
+      setEventsData(null);
+      eventsInitialLoad.current = true;
+    }
+    return () => {
+      isMounted = false;
+      if (eventsPollingRef.current) clearInterval(eventsPollingRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userId, hasSynced]);
+
+  // Sync handler
+  const handleFirstSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      if (res.ok) {
+        await fetch('/api/user/set-synced', { method: 'POST' });
+        setHasSynced(true);
+      }
     } finally {
       setSyncing(false);
     }
   };
+
+  // Inbox Cleanup Suggestions state
+  interface CleanupSuggestion {
+    emailId: string;
+    providerEmailId: string;
+    from: string;
+    subject: string;
+    snippet: string;
+    reason: string;
+    suggestedAction: 'archive' | 'trash' | 'delete_permanently';
+  }
+  const [cleanupSuggestions, setCleanupSuggestions] = useState<CleanupSuggestion[] | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupError, setCleanupError] = useState<Error | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const loadCleanupSuggestions = () => {
+    if (!isAuthenticated || !userId) return;
+    setCleanupLoading(true);
+    fetch("/api/ai/suggest-cleanups")
+      .then((res) => res.json())
+      .then((data) => {
+        setCleanupSuggestions(data.suggestions || []);
+        setCleanupLoading(false);
+      })
+      .catch((err) => {
+        setCleanupError(err instanceof Error ? err : new Error(String(err)));
+        setCleanupLoading(false);
+      });
+  };
+
+  const generateCleanupSuggestions = async () => {
+    setGenerating(true);
+    setCleanupError(null);
+    try {
+      const response = await fetch("/api/ai/generate-cleanups", {
+        method: "POST",
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Reload suggestions after generating new ones
+        await loadCleanupSuggestions();
+        alert(`Generated ${data.count} new suggestions!`);
+      } else {
+        throw new Error(data.message || 'Failed to generate suggestions');
+      }
+    } catch (err) {
+      setCleanupError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCleanupSuggestions();
+  }, [isAuthenticated, userId]);
 
   return (
     <Container>
       <h1 className="text-3xl font-bold text-[var(--text-main)] mb-6">
         Welcome to OmniDo
       </h1>
-      <button
-        onClick={handleSync}
-        disabled={syncing}
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-      >
-        {syncing ? "Syncing..." : "Sync Now"}
-      </button>
-      {syncMessage && (
-        <div className="mb-4 text-sm text-green-600">{syncMessage}</div>
+      {hasSynced === false && (
+        <button
+          onClick={handleFirstSync}
+          disabled={syncing}
+          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {syncing ? 'Syncing...' : 'Sync Now'}
+        </button>
+      )}
+      {/* Inbox Cleanup Suggestions Widget */}
+      {isAuthenticated && (
+        <div className="mb-6">
+          <Card variant="elevated" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold mb-1">Inbox Cleanup Suggestions</h2>
+                {cleanupLoading ? (
+                  <span>Loading suggestions...</span>
+                ) : cleanupError ? (
+                  <span className="text-red-500">Error loading suggestions</span>
+                ) : (
+                  <span>
+                    {cleanupSuggestions && cleanupSuggestions.length > 0
+                      ? `${cleanupSuggestions.length} emails suggested for cleanup!`
+                      : "No cleanup suggestions right now."}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  loading={generating}
+                  onClick={generateCleanupSuggestions}
+                  disabled={generating}
+                >
+                  {generating ? 'Generating...' : 'Generate Suggestions'}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={cleanupLoading || !cleanupSuggestions || cleanupSuggestions.length === 0}
+                  onClick={() => router.push("/myreviewqueue")}
+                >
+                  Review Suggestions
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
       <UsersList />
 

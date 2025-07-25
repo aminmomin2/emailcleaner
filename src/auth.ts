@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { CustomAdapter } from "./app/api/lib/auth/adapters"
+import type { SessionStrategy } from "next-auth";
 
 export const authOptions = {
   adapter: CustomAdapter(),
@@ -24,7 +25,7 @@ export const authOptions = {
     }),
   ],
   session: {
-    strategy: "database",
+    strategy: "database" as SessionStrategy,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {

@@ -20,12 +20,16 @@ directive @mysqlCount(subgraph: String, table: String) on FIELD_DEFINITION
 type Query {
   accounts(limit: Int, offset: Int, where: accounts_WhereInput, orderBy: accounts_OrderByInput): [accounts] @mysqlSelect(subgraph: "MySQL", table: "accounts")
   count_accounts(where: accounts_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "accounts")
+  cleanup_suggestions(limit: Int, offset: Int, where: cleanup_suggestions_WhereInput, orderBy: cleanup_suggestions_OrderByInput): [cleanup_suggestions] @mysqlSelect(subgraph: "MySQL", table: "cleanup_suggestions")
+  count_cleanup_suggestions(where: cleanup_suggestions_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "cleanup_suggestions")
   sessions(limit: Int, offset: Int, where: sessions_WhereInput, orderBy: sessions_OrderByInput): [sessions] @mysqlSelect(subgraph: "MySQL", table: "sessions")
   count_sessions(where: sessions_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "sessions")
   user_calendar_events(limit: Int, offset: Int, where: user_calendar_events_WhereInput, orderBy: user_calendar_events_OrderByInput): [user_calendar_events] @mysqlSelect(subgraph: "MySQL", table: "user_calendar_events")
   count_user_calendar_events(where: user_calendar_events_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "user_calendar_events")
   user_emails(limit: Int, offset: Int, where: user_emails_WhereInput, orderBy: user_emails_OrderByInput): [user_emails] @mysqlSelect(subgraph: "MySQL", table: "user_emails")
   count_user_emails(where: user_emails_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "user_emails")
+  user_preferences(limit: Int, offset: Int, where: user_preferences_WhereInput, orderBy: user_preferences_OrderByInput): [user_preferences] @mysqlSelect(subgraph: "MySQL", table: "user_preferences")
+  count_user_preferences(where: user_preferences_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "user_preferences")
   users(limit: Int, offset: Int, where: users_WhereInput, orderBy: users_OrderByInput): [users] @mysqlSelect(subgraph: "MySQL", table: "users")
   count_users(where: users_WhereInput): Int @mysqlCount(subgraph: "MySQL", table: "users")
   me: User
@@ -37,6 +41,9 @@ type Mutation {
   insert_accounts(accounts: accounts_InsertInput!): accounts @mysqlInsert(subgraph: "MySQL", table: "accounts", primaryKeys: ["id"])
   update_accounts(accounts: accounts_UpdateInput!, where: accounts_WhereInput): accounts @mysqlUpdate(subgraph: "MySQL", table: "accounts")
   delete_accounts(where: accounts_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "accounts")
+  insert_cleanup_suggestions(cleanup_suggestions: cleanup_suggestions_InsertInput!): cleanup_suggestions @mysqlInsert(subgraph: "MySQL", table: "cleanup_suggestions", primaryKeys: ["id"])
+  update_cleanup_suggestions(cleanup_suggestions: cleanup_suggestions_UpdateInput!, where: cleanup_suggestions_WhereInput): cleanup_suggestions @mysqlUpdate(subgraph: "MySQL", table: "cleanup_suggestions")
+  delete_cleanup_suggestions(where: cleanup_suggestions_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "cleanup_suggestions")
   insert_sessions(sessions: sessions_InsertInput!): sessions @mysqlInsert(subgraph: "MySQL", table: "sessions", primaryKeys: ["id"])
   update_sessions(sessions: sessions_UpdateInput!, where: sessions_WhereInput): sessions @mysqlUpdate(subgraph: "MySQL", table: "sessions")
   delete_sessions(where: sessions_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "sessions")
@@ -46,6 +53,9 @@ type Mutation {
   insert_user_emails(user_emails: user_emails_InsertInput!): user_emails @mysqlInsert(subgraph: "MySQL", table: "user_emails", primaryKeys: ["id"])
   update_user_emails(user_emails: user_emails_UpdateInput!, where: user_emails_WhereInput): user_emails @mysqlUpdate(subgraph: "MySQL", table: "user_emails")
   delete_user_emails(where: user_emails_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "user_emails")
+  insert_user_preferences(user_preferences: user_preferences_InsertInput!): user_preferences @mysqlInsert(subgraph: "MySQL", table: "user_preferences", primaryKeys: ["id"])
+  update_user_preferences(user_preferences: user_preferences_UpdateInput!, where: user_preferences_WhereInput): user_preferences @mysqlUpdate(subgraph: "MySQL", table: "user_preferences")
+  delete_user_preferences(where: user_preferences_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "user_preferences")
   insert_users(users: users_InsertInput!): users @mysqlInsert(subgraph: "MySQL", table: "users", primaryKeys: ["id"])
   update_users(users: users_UpdateInput!, where: users_WhereInput): users @mysqlUpdate(subgraph: "MySQL", table: "users")
   delete_users(where: users_WhereInput): Boolean @mysqlDelete(subgraph: "MySQL", table: "users")
@@ -118,10 +128,13 @@ type users {
   updated_at: Timestamp
   """Last time user data was polled for new emails/events"""
   last_synced_at: DateTime
+  has_synced: Int
   accounts(limit: Int, offset: Int, where: accounts_WhereInput, orderBy: accounts_OrderByInput): [accounts] @mysqlSelect(subgraph: "MySQL", table: "accounts", columnMap: [["user_id", "id"]])
+  cleanup_suggestions(limit: Int, offset: Int, where: cleanup_suggestions_WhereInput, orderBy: cleanup_suggestions_OrderByInput): [cleanup_suggestions] @mysqlSelect(subgraph: "MySQL", table: "cleanup_suggestions", columnMap: [["user_id", "id"]])
   sessions(limit: Int, offset: Int, where: sessions_WhereInput, orderBy: sessions_OrderByInput): [sessions] @mysqlSelect(subgraph: "MySQL", table: "sessions", columnMap: [["user_id", "id"]])
   user_calendar_events(limit: Int, offset: Int, where: user_calendar_events_WhereInput, orderBy: user_calendar_events_OrderByInput): [user_calendar_events] @mysqlSelect(subgraph: "MySQL", table: "user_calendar_events", columnMap: [["user_id", "id"]])
   user_emails(limit: Int, offset: Int, where: user_emails_WhereInput, orderBy: user_emails_OrderByInput): [user_emails] @mysqlSelect(subgraph: "MySQL", table: "user_emails", columnMap: [["user_id", "id"]])
+  user_preferences(limit: Int, offset: Int, where: user_preferences_WhereInput, orderBy: user_preferences_OrderByInput): [user_preferences] @mysqlSelect(subgraph: "MySQL", table: "user_preferences", columnMap: [["user_id", "id"]])
 }
 
 """
@@ -204,201 +217,46 @@ enum OrderBy {
   desc
 }
 
-type sessions {
-  """Unique ID for the session record (UUID)"""
-  id: String!
-  """The unique token used to identify the session"""
-  session_token: String!
-  """Foreign key linking to the users table"""
-  user_id: String!
-  """Timestamp when the session expires"""
-  expires: DateTime!
-  created_at: Timestamp
-  updated_at: Timestamp
-  users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
-}
-
-input users_WhereInput {
-  """
-  Unique user ID (UUID) generated by NextAuth.js for your application's internal use
-  """
-  id: String
-  """User's display name, typically from the OAuth provider (e.g., Google)"""
-  name: String
-  """
-  User's primary email address, typically from the OAuth provider (e.g., Google)
-  """
-  email: String
-  """Timestamp when the email was verified (e.g., via OAuth login)"""
-  email_verified: String
-  """URL to user's profile picture from the OAuth provider"""
-  image: String
-  """Timestamp when the user record was created"""
-  created_at: String
-  """Timestamp when the user record was last updated"""
-  updated_at: String
-  """Last time user data was polled for new emails/events"""
-  last_synced_at: String
-}
-
-input users_OrderByInput {
-  """
-  Unique user ID (UUID) generated by NextAuth.js for your application's internal use
-  """
-  id: OrderBy
-  """User's display name, typically from the OAuth provider (e.g., Google)"""
-  name: OrderBy
-  """
-  User's primary email address, typically from the OAuth provider (e.g., Google)
-  """
-  email: OrderBy
-  """Timestamp when the email was verified (e.g., via OAuth login)"""
-  email_verified: OrderBy
-  """URL to user's profile picture from the OAuth provider"""
-  image: OrderBy
-  """Timestamp when the user record was created"""
-  created_at: OrderBy
-  """Timestamp when the user record was last updated"""
-  updated_at: OrderBy
-  """Last time user data was polled for new emails/events"""
-  last_synced_at: OrderBy
-}
-
-input sessions_WhereInput {
-  """Unique ID for the session record (UUID)"""
-  id: String
-  """The unique token used to identify the session"""
-  session_token: String
-  """Foreign key linking to the users table"""
-  user_id: String
-  """Timestamp when the session expires"""
-  expires: String
-  created_at: String
-  updated_at: String
-}
-
-input sessions_OrderByInput {
-  """Unique ID for the session record (UUID)"""
-  id: OrderBy
-  """The unique token used to identify the session"""
-  session_token: OrderBy
-  """Foreign key linking to the users table"""
-  user_id: OrderBy
-  """Timestamp when the session expires"""
-  expires: OrderBy
-  created_at: OrderBy
-  updated_at: OrderBy
-}
-
-type user_calendar_events {
-  """Your internal unique ID for the event (UUID)"""
+type cleanup_suggestions {
+  """Unique ID for the suggestion (UUID)"""
   id: String!
   """Foreign key linking to the users table"""
   user_id: String!
-  """The event's ID from Google/Outlook"""
-  provider_event_id: String!
-  """The ID of the calendar it belongs to"""
-  calendar_id: String!
-  """Event title/summary"""
-  summary: String
-  """Event description"""
-  description: String
-  """Event start time"""
-  start_time: DateTime!
-  """Event end time"""
-  end_time: DateTime!
-  """Event location"""
-  location: String
-  """JSON array of attendee emails and their response statuses"""
-  attendees: JSON
-  """Event status"""
-  status: user_calendar_events_status!
-  """
-  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
-  """
-  html_link: String
-  """Timestamp when your system ingested this event"""
-  ingested_at: Timestamp
+  """Foreign key linking to the user_emails table"""
+  email_id: String!
+  """The email's ID from Google/Outlook"""
+  provider_email_id: String!
+  """Sender's email address"""
+  from_email: String
+  """Email subject line"""
+  subject: String
+  """A short preview/snippet of the email body"""
+  snippet: String
+  """Reason for the cleanup suggestion"""
+  reason: String!
+  """Suggested cleanup action"""
+  suggested_action: cleanup_suggestions_suggested_action!
+  """Current status of the suggestion"""
+  status: cleanup_suggestions_status
+  """Timestamp when the suggestion was created"""
   created_at: Timestamp
+  """Timestamp when the suggestion was last updated"""
   updated_at: Timestamp
+  user_emails(where: user_emails_WhereInput, orderBy: user_emails_OrderByInput, limit: Int, offset: Int): [user_emails] @mysqlSelect(subgraph: "MySQL", table: "user_emails", columnMap: [["id", "email_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "email_id")
   users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
 }
 
-"""
-The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
-"""
-scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
-
-enum user_calendar_events_status {
-  confirmed
-  tentative
-  cancelled
+enum cleanup_suggestions_suggested_action {
+  archive
+  trash
+  delete_permanently
 }
 
-input user_calendar_events_WhereInput {
-  """Your internal unique ID for the event (UUID)"""
-  id: String
-  """Foreign key linking to the users table"""
-  user_id: String
-  """The event's ID from Google/Outlook"""
-  provider_event_id: String
-  """The ID of the calendar it belongs to"""
-  calendar_id: String
-  """Event title/summary"""
-  summary: String
-  """Event description"""
-  description: String
-  """Event start time"""
-  start_time: String
-  """Event end time"""
-  end_time: String
-  """Event location"""
-  location: String
-  """JSON array of attendee emails and their response statuses"""
-  attendees: String
-  """Event status"""
-  status: String
-  """
-  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
-  """
-  html_link: String
-  """Timestamp when your system ingested this event"""
-  ingested_at: String
-  created_at: String
-  updated_at: String
-}
-
-input user_calendar_events_OrderByInput {
-  """Your internal unique ID for the event (UUID)"""
-  id: OrderBy
-  """Foreign key linking to the users table"""
-  user_id: OrderBy
-  """The event's ID from Google/Outlook"""
-  provider_event_id: OrderBy
-  """The ID of the calendar it belongs to"""
-  calendar_id: OrderBy
-  """Event title/summary"""
-  summary: OrderBy
-  """Event description"""
-  description: OrderBy
-  """Event start time"""
-  start_time: OrderBy
-  """Event end time"""
-  end_time: OrderBy
-  """Event location"""
-  location: OrderBy
-  """JSON array of attendee emails and their response statuses"""
-  attendees: OrderBy
-  """Event status"""
-  status: OrderBy
-  """
-  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
-  """
-  html_link: OrderBy
-  """Timestamp when your system ingested this event"""
-  ingested_at: OrderBy
-  created_at: OrderBy
-  updated_at: OrderBy
+enum cleanup_suggestions_status {
+  pending
+  approved
+  rejected
+  executed
 }
 
 type user_emails {
@@ -436,14 +294,122 @@ type user_emails {
   raw_body_hash: String
   created_at: Timestamp
   updated_at: Timestamp
+  cleanup_suggestions(limit: Int, offset: Int, where: cleanup_suggestions_WhereInput, orderBy: cleanup_suggestions_OrderByInput): [cleanup_suggestions] @mysqlSelect(subgraph: "MySQL", table: "cleanup_suggestions", columnMap: [["email_id", "id"]])
   users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
 }
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
 enum user_emails_status {
   active
   archived
   trashed
   deleted
+}
+
+input cleanup_suggestions_WhereInput {
+  """Unique ID for the suggestion (UUID)"""
+  id: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """Foreign key linking to the user_emails table"""
+  email_id: String
+  """The email's ID from Google/Outlook"""
+  provider_email_id: String
+  """Sender's email address"""
+  from_email: String
+  """Email subject line"""
+  subject: String
+  """A short preview/snippet of the email body"""
+  snippet: String
+  """Reason for the cleanup suggestion"""
+  reason: String
+  """Suggested cleanup action"""
+  suggested_action: String
+  """Current status of the suggestion"""
+  status: String
+  """Timestamp when the suggestion was created"""
+  created_at: String
+  """Timestamp when the suggestion was last updated"""
+  updated_at: String
+}
+
+input cleanup_suggestions_OrderByInput {
+  """Unique ID for the suggestion (UUID)"""
+  id: OrderBy
+  """Foreign key linking to the users table"""
+  user_id: OrderBy
+  """Foreign key linking to the user_emails table"""
+  email_id: OrderBy
+  """The email's ID from Google/Outlook"""
+  provider_email_id: OrderBy
+  """Sender's email address"""
+  from_email: OrderBy
+  """Email subject line"""
+  subject: OrderBy
+  """A short preview/snippet of the email body"""
+  snippet: OrderBy
+  """Reason for the cleanup suggestion"""
+  reason: OrderBy
+  """Suggested cleanup action"""
+  suggested_action: OrderBy
+  """Current status of the suggestion"""
+  status: OrderBy
+  """Timestamp when the suggestion was created"""
+  created_at: OrderBy
+  """Timestamp when the suggestion was last updated"""
+  updated_at: OrderBy
+}
+
+input users_WhereInput {
+  """
+  Unique user ID (UUID) generated by NextAuth.js for your application's internal use
+  """
+  id: String
+  """User's display name, typically from the OAuth provider (e.g., Google)"""
+  name: String
+  """
+  User's primary email address, typically from the OAuth provider (e.g., Google)
+  """
+  email: String
+  """Timestamp when the email was verified (e.g., via OAuth login)"""
+  email_verified: String
+  """URL to user's profile picture from the OAuth provider"""
+  image: String
+  """Timestamp when the user record was created"""
+  created_at: String
+  """Timestamp when the user record was last updated"""
+  updated_at: String
+  """Last time user data was polled for new emails/events"""
+  last_synced_at: String
+  has_synced: String
+}
+
+input users_OrderByInput {
+  """
+  Unique user ID (UUID) generated by NextAuth.js for your application's internal use
+  """
+  id: OrderBy
+  """User's display name, typically from the OAuth provider (e.g., Google)"""
+  name: OrderBy
+  """
+  User's primary email address, typically from the OAuth provider (e.g., Google)
+  """
+  email: OrderBy
+  """Timestamp when the email was verified (e.g., via OAuth login)"""
+  email_verified: OrderBy
+  """URL to user's profile picture from the OAuth provider"""
+  image: OrderBy
+  """Timestamp when the user record was created"""
+  created_at: OrderBy
+  """Timestamp when the user record was last updated"""
+  updated_at: OrderBy
+  """Last time user data was polled for new emails/events"""
+  last_synced_at: OrderBy
+  has_synced: OrderBy
 }
 
 input user_emails_WhereInput {
@@ -520,6 +486,204 @@ input user_emails_OrderByInput {
   updated_at: OrderBy
 }
 
+type sessions {
+  """Unique ID for the session record (UUID)"""
+  id: String!
+  """The unique token used to identify the session"""
+  session_token: String!
+  """Foreign key linking to the users table"""
+  user_id: String!
+  """Timestamp when the session expires"""
+  expires: DateTime!
+  created_at: Timestamp
+  updated_at: Timestamp
+  users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
+}
+
+input sessions_WhereInput {
+  """Unique ID for the session record (UUID)"""
+  id: String
+  """The unique token used to identify the session"""
+  session_token: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """Timestamp when the session expires"""
+  expires: String
+  created_at: String
+  updated_at: String
+}
+
+input sessions_OrderByInput {
+  """Unique ID for the session record (UUID)"""
+  id: OrderBy
+  """The unique token used to identify the session"""
+  session_token: OrderBy
+  """Foreign key linking to the users table"""
+  user_id: OrderBy
+  """Timestamp when the session expires"""
+  expires: OrderBy
+  created_at: OrderBy
+  updated_at: OrderBy
+}
+
+type user_calendar_events {
+  """Your internal unique ID for the event (UUID)"""
+  id: String!
+  """Foreign key linking to the users table"""
+  user_id: String!
+  """The event's ID from Google/Outlook"""
+  provider_event_id: String!
+  """The ID of the calendar it belongs to"""
+  calendar_id: String!
+  """Event title/summary"""
+  summary: String
+  """Event description"""
+  description: String
+  """Event start time"""
+  start_time: DateTime!
+  """Event end time"""
+  end_time: DateTime!
+  """Event location"""
+  location: String
+  """JSON array of attendee emails and their response statuses"""
+  attendees: JSON
+  """Event status"""
+  status: user_calendar_events_status!
+  """
+  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
+  """
+  html_link: String
+  """Timestamp when your system ingested this event"""
+  ingested_at: Timestamp
+  created_at: Timestamp
+  updated_at: Timestamp
+  users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
+}
+
+enum user_calendar_events_status {
+  confirmed
+  tentative
+  cancelled
+}
+
+input user_calendar_events_WhereInput {
+  """Your internal unique ID for the event (UUID)"""
+  id: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """The event's ID from Google/Outlook"""
+  provider_event_id: String
+  """The ID of the calendar it belongs to"""
+  calendar_id: String
+  """Event title/summary"""
+  summary: String
+  """Event description"""
+  description: String
+  """Event start time"""
+  start_time: String
+  """Event end time"""
+  end_time: String
+  """Event location"""
+  location: String
+  """JSON array of attendee emails and their response statuses"""
+  attendees: String
+  """Event status"""
+  status: String
+  """
+  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
+  """
+  html_link: String
+  """Timestamp when your system ingested this event"""
+  ingested_at: String
+  created_at: String
+  updated_at: String
+}
+
+input user_calendar_events_OrderByInput {
+  """Your internal unique ID for the event (UUID)"""
+  id: OrderBy
+  """Foreign key linking to the users table"""
+  user_id: OrderBy
+  """The event's ID from Google/Outlook"""
+  provider_event_id: OrderBy
+  """The ID of the calendar it belongs to"""
+  calendar_id: OrderBy
+  """Event title/summary"""
+  summary: OrderBy
+  """Event description"""
+  description: OrderBy
+  """Event start time"""
+  start_time: OrderBy
+  """Event end time"""
+  end_time: OrderBy
+  """Event location"""
+  location: OrderBy
+  """JSON array of attendee emails and their response statuses"""
+  attendees: OrderBy
+  """Event status"""
+  status: OrderBy
+  """
+  Link to the event in the provider's calendar (e.g., Google Calendar HTML link)
+  """
+  html_link: OrderBy
+  """Timestamp when your system ingested this event"""
+  ingested_at: OrderBy
+  created_at: OrderBy
+  updated_at: OrderBy
+}
+
+type user_preferences {
+  """Unique ID for the preference record (UUID)"""
+  id: String!
+  """Foreign key linking to the users table"""
+  user_id: String!
+  """
+  Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders')
+  """
+  preference_key: String!
+  """
+  Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]')
+  """
+  preference_value: String
+  created_at: Timestamp
+  updated_at: Timestamp
+  users(where: users_WhereInput, orderBy: users_OrderByInput, limit: Int, offset: Int): [users] @mysqlSelect(subgraph: "MySQL", table: "users", columnMap: [["id", "user_id"]]) @mysqlTableForeign(subgraph: "MySQL", columnName: "user_id")
+}
+
+input user_preferences_WhereInput {
+  """Unique ID for the preference record (UUID)"""
+  id: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """
+  Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders')
+  """
+  preference_key: String
+  """
+  Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]')
+  """
+  preference_value: String
+  created_at: String
+  updated_at: String
+}
+
+input user_preferences_OrderByInput {
+  """Unique ID for the preference record (UUID)"""
+  id: OrderBy
+  """Foreign key linking to the users table"""
+  user_id: OrderBy
+  """
+  Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders')
+  """
+  preference_key: OrderBy
+  """
+  Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]')
+  """
+  preference_value: OrderBy
+  created_at: OrderBy
+  updated_at: OrderBy
+}
+
 input accounts_InsertInput {
   """Unique ID for this specific account link (UUID)"""
   id: String!
@@ -587,6 +751,60 @@ input accounts_UpdateInput {
   """For OAuth 2.0 state management"""
   session_state: String
   created_at: Timestamp
+  updated_at: Timestamp
+}
+
+input cleanup_suggestions_InsertInput {
+  """Unique ID for the suggestion (UUID)"""
+  id: String!
+  """Foreign key linking to the users table"""
+  user_id: String!
+  """Foreign key linking to the user_emails table"""
+  email_id: String!
+  """The email's ID from Google/Outlook"""
+  provider_email_id: String!
+  """Sender's email address"""
+  from_email: String
+  """Email subject line"""
+  subject: String
+  """A short preview/snippet of the email body"""
+  snippet: String
+  """Reason for the cleanup suggestion"""
+  reason: String!
+  """Suggested cleanup action"""
+  suggested_action: cleanup_suggestions_suggested_action!
+  """Current status of the suggestion"""
+  status: cleanup_suggestions_status
+  """Timestamp when the suggestion was created"""
+  created_at: Timestamp
+  """Timestamp when the suggestion was last updated"""
+  updated_at: Timestamp
+}
+
+input cleanup_suggestions_UpdateInput {
+  """Unique ID for the suggestion (UUID)"""
+  id: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """Foreign key linking to the user_emails table"""
+  email_id: String
+  """The email's ID from Google/Outlook"""
+  provider_email_id: String
+  """Sender's email address"""
+  from_email: String
+  """Email subject line"""
+  subject: String
+  """A short preview/snippet of the email body"""
+  snippet: String
+  """Reason for the cleanup suggestion"""
+  reason: String
+  """Suggested cleanup action"""
+  suggested_action: cleanup_suggestions_suggested_action
+  """Current status of the suggestion"""
+  status: cleanup_suggestions_status
+  """Timestamp when the suggestion was created"""
+  created_at: Timestamp
+  """Timestamp when the suggestion was last updated"""
   updated_at: Timestamp
 }
 
@@ -756,6 +974,40 @@ input user_emails_UpdateInput {
   updated_at: Timestamp
 }
 
+input user_preferences_InsertInput {
+  """Unique ID for the preference record (UUID)"""
+  id: String!
+  """Foreign key linking to the users table"""
+  user_id: String!
+  """
+  Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders')
+  """
+  preference_key: String!
+  """
+  Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]')
+  """
+  preference_value: String
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+input user_preferences_UpdateInput {
+  """Unique ID for the preference record (UUID)"""
+  id: String
+  """Foreign key linking to the users table"""
+  user_id: String
+  """
+  Key for the specific preference (e.g., 'ai_tone', 'auto_summarize', 'email_unwanted_senders')
+  """
+  preference_key: String
+  """
+  Value of the preference (e.g., 'professional', 'true', '15', '["spam.com", "newsletter.net"]')
+  """
+  preference_value: String
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
 input users_InsertInput {
   """
   Unique user ID (UUID) generated by NextAuth.js for your application's internal use
@@ -777,6 +1029,7 @@ input users_InsertInput {
   updated_at: Timestamp
   """Last time user data was polled for new emails/events"""
   last_synced_at: DateTime
+  has_synced: Int
 }
 
 input users_UpdateInput {
@@ -800,6 +1053,7 @@ input users_UpdateInput {
   updated_at: Timestamp
   """Last time user data was polled for new emails/events"""
   last_synced_at: DateTime
+  has_synced: Int
 }
 
 type User {

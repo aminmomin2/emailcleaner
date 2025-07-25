@@ -11,6 +11,7 @@
     "check-db": "node scripts/check-db.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@graphql-mesh/cli": "^0.100.7",
     "@graphql-mesh/config": "^0.108.7",
     "@graphql-mesh/graphql": "^0.104.6",
@@ -20,6 +21,7 @@
     "@graphql-tools/merge": "^9.0.24",
     "@graphql-tools/utils": "^10.8.6",
     "@types/bcryptjs": "^2.4.6",
+    "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.0",
     "google-auth-library": "^10.1.0",
@@ -34,7 +36,8 @@
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

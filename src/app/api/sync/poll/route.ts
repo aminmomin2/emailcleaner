@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { pollForNewData } from '../../lib/integrations/google/pollingService';
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     await pollForNewData();
     return NextResponse.json({ status: 'success', message: 'Polling complete.' });

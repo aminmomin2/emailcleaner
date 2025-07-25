@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration error:', error)
     
-    if (error.message === 'A user with this email already exists') {
+    if ((error as Error).message === 'A user with this email already exists') {
       return NextResponse.json(
         { error: 'A user with this email already exists' },
         { status: 409 }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to register user' },
+      { error: 'Failed to register user', message: (error as Error).message },
       { status: 500 }
     )
   }
