@@ -13,8 +13,6 @@ export async function classifyEmailWithGemini(subject: string, from: string, sni
   const prompt = `Classify the following email into one of these categories: Newsletter, Promotional, Social Notification, Spam, Personal, Work-Related, Transactional, Other. Provide only the category name.\n\nSubject: ${subject}\nFrom: ${from}\nBody Snippet: ${snippet}\nFull Body (first 500 chars): ${fullBody.substring(0, 500)}`;
   
   try {
-    console.log('[DEBUG] Attempting to classify email with prompt:', prompt.substring(0, 200) + '...');
-    
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0 },
@@ -28,7 +26,6 @@ export async function classifyEmailWithGemini(subject: string, from: string, sni
     });
     
     const text = result.response.text().trim();
-    console.log('[DEBUG] Classification result:', text);
     return text;
   } catch (error) {
     console.error('[ERROR] Classification failed:', error);

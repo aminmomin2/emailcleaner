@@ -1,18 +1,48 @@
+/**
+ * NextAuth.js Configuration for EmailCleaner
+ * 
+ * This file configures authentication for the EmailCleaner application using NextAuth.js.
+ * It sets up Google OAuth provider with Gmail and Calendar scopes, custom database adapter,
+ * and session management for secure user authentication.
+ * 
+ * Features:
+ * - Google OAuth 2.0 authentication
+ * - Gmail and Calendar API access scopes
+ * - Custom MySQL database adapter
+ * - Secure session management
+ * - Automatic token refresh
+ * 
+ * @author Amin Momin
+ * @version 1.0.0
+ */
+
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { CustomAdapter } from "./app/api/lib/auth/adapters"
 import type { SessionStrategy } from "next-auth";
 
+/**
+ * NextAuth configuration object
+ * 
+ * Defines authentication providers, session strategy, callbacks, and security settings
+ * for the EmailCleaner application.
+ */
 export const authOptions = {
+  // Custom MySQL adapter for user and session management
   adapter: CustomAdapter(),
+  
+  // Authentication providers
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
+          // Request offline access for token refresh
           access_type: "offline",
+          // Always prompt for consent to ensure fresh tokens
           prompt: "consent",
+          // Required scopes for Gmail and Calendar access
           scope: [
             "openid",
             "email",
@@ -29,22 +59,17 @@ export const authOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      console.log('🟠 [NEXTAUTH] signIn callback called for user:', user.email);
+    async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
       if (account?.provider === "google") {
         user.emailVerified = new Date()
-        console.log('✅ [NEXTAUTH] Google user - email verified');
       }
-      console.log('✅ [NEXTAUTH] signIn callback returning true');
       return true
     },
-    async session({ session, user }) {
-      console.log('🟠 [NEXTAUTH] session callback called for user:', user.email);
+    async session({ session, user }: { session: any; user: any }) {
       if (session.user) {
         session.user.id = user.id
         session.user.emailVerified = user.emailVerified
       }
-      console.log('✅ [NEXTAUTH] session callback returning session for user:', user.email);
       return session
     }
   },

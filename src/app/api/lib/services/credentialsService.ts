@@ -43,32 +43,23 @@ export class CredentialsService {
 
   // Validate user credentials
   static async validateCredentials(email: string, password: string): Promise<CredentialsUser | null> {
-    console.log("🟢 [CREDENTIALS] Validating credentials for email:", email)
-    
     // Find user by email
     const user = await UserService.getUserByEmail(email)
     if (!user) {
-      console.log("❌ [CREDENTIALS] User not found for email:", email)
       return null
     }
-
-    console.log("✅ [CREDENTIALS] User found:", { id: user.id, email: user.email, name: user.name })
 
     // Get the stored password hash
     const storedPassword = await this.getPassword(user.id)
     if (!storedPassword) {
-      console.log("❌ [CREDENTIALS] No password found for user:", user.id)
       return null
     }
 
     // Compare passwords
     const isValid = await bcrypt.compare(password, storedPassword)
     if (!isValid) {
-      console.log("❌ [CREDENTIALS] Invalid password for user:", user.id)
       return null
     }
-
-    console.log("✅ [CREDENTIALS] Credentials validated successfully for user:", user.id)
 
     // For credentials users, email should not be verified
     // But we return the actual database value in case it was set by other means

@@ -1,3 +1,21 @@
+/**
+ * Gmail and Google Calendar Synchronization Service
+ * 
+ * This service handles the initial synchronization of user data from Google services.
+ * It fetches recent emails and calendar events, processes them, and stores them
+ * in the database for AI analysis and cleanup suggestions.
+ * 
+ * Features:
+ * - Fetches emails from the last 30 days
+ * - Extracts email metadata (sender, subject, content, labels)
+ * - Fetches calendar events from the last 30 days
+ * - Handles OAuth token management and refresh
+ * - Implements error handling and logging
+ * 
+ * @author Amin Momin
+ * @version 1.0.0
+ */
+
 import { getAuthenticatedGoogleClient } from '../../auth/tokenManagement';
 import { google } from 'googleapis';
 import { executeSingleQuery } from '../../database';
@@ -6,18 +24,27 @@ import { toMySQLDateTime } from '../../utils/datetime';
 import type { gmail_v1, calendar_v3 } from 'googleapis';
 
 /**
- * One-time sync of recent Gmail and Calendar data for a user.
- * - Fetches recent emails and calendar events
- * - Stores them in user_emails and user_calendar_events tables
+ * Performs initial synchronization of user's Gmail and Calendar data
+ * 
+ * This function is called once when a user first connects their Gmail account.
+ * It fetches recent emails and calendar events, processes the data, and stores
+ * it in the database for AI analysis and cleanup suggestions.
+ * 
+ * @param {string} userId - The unique identifier of the user
+ * @returns {Promise<void>} Resolves when sync is complete
+ * 
+ * @throws {Error} When OAuth authentication fails or API calls fail
  */
 export async function syncInitialUserData(userId: string) {
   try {
-    console.log('[SYNC] Starting sync for user:', userId);
+    // Get authenticated Google OAuth client for the user
     const oauth2Client = await getAuthenticatedGoogleClient(userId);
     if (!oauth2Client) {
       console.error('[SYNC] Failed to get authenticated Google client for user:', userId);
       return;
     }
+    
+    // Initialize Gmail and Calendar API clients
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -30,7 +57,7 @@ export async function syncInitialUserData(userId: string) {
       maxResults: 20, // limit for initial sync
     });
     const messages = messagesList.data.messages || [];
-    console.log(`[SYNC] Fetched ${messages.length} emails for user:`, userId);
+
     for (const msg of messages) {
       try {
         const msgDetail = await gmail.users.messages.get({ userId: 'me', id: msg.id! });
@@ -92,7 +119,7 @@ export async function syncInitialUserData(userId: string) {
           status,
           raw_body_hash,
         ]);
-        console.log(`[SYNC] Inserted/updated email ${provider_email_id} for user:`, userId);
+
       } catch (err) {
         console.error('[SYNC] Failed to fetch/store email:', err);
       }
@@ -110,7 +137,7 @@ export async function syncInitialUserData(userId: string) {
       orderBy: 'startTime',
     });
     const events = eventsList.data.items || [];
-    console.log(`[SYNC] Fetched ${events.length} calendar events for user:`, userId);
+
     for (const event of events) {
       try {
         const eventId = crypto.randomUUID();
@@ -158,7 +185,7 @@ export async function syncInitialUserData(userId: string) {
       }
     }
 
-    console.log(`Initial sync complete for user ${userId}: ${messages.length} emails, ${events.length} events.`);
+
   } catch (error) {
     console.error('[SYNC] General sync error for user', userId, error);
   }

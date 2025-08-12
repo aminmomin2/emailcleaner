@@ -3,16 +3,7 @@ import { getAuthenticatedGoogleClient } from '../../auth/tokenManagement';
 
 // Placeholder for logging actions (replace with your DB logic)
 async function logAiAction(userId: string, actionType: string, status: string, details: Record<string, unknown>, workflowRunId?: string, sourceContext?: Record<string, unknown>) {
-    // TODO: Replace with actual DB logging logic
-    console.log('AI Action Log:', {
-        id: crypto.randomUUID(),
-        userId,
-        actionType,
-        status,
-        details: details || {},
-        workflowRunId,
-        sourceContext: sourceContext || {},
-    });
+    // Placeholder for logging actions (replace with your DB logic)
 }
 
 // Function to archive an email

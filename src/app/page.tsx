@@ -1,228 +1,101 @@
 'use client';
 
-import Container from "@/components/ui/Container";
-import { request, gql, GraphQLClient } from 'graphql-request';
-import { useEffect, useState, useRef } from 'react';
+/**
+ * Main application page component for EmailCleaner
+ * 
+ * This component serves as the primary interface for the email cleanup application.
+ * It handles user authentication, Gmail synchronization, and AI-powered email cleanup suggestions.
+ * 
+ * Key Features:
+ * - OAuth authentication with Google
+ * - Gmail account synchronization
+ * - AI-powered email cleanup suggestions
+ * - Bulk email operations (archive, trash, delete)
+ * - Real-time feedback with toast notifications
+ * - Confirmation modals for destructive actions
+ * 
+ * @author Amin Momin
+ * @version 1.0.0
+ */
+
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from "@/hooks/useAuth";
+import { signOut } from "next-auth/react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { useRouter } from "next/navigation";
+import Badge from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
+import { useModal } from "@/components/ui/Modal";
 
-const GET_USERS = gql`
-  query GetUsers {
-    users {
-      id
-      name
-      email
-    }
-  }
-`;
-
-// Define a User type for the UsersList
+/**
+ * User interface representing authenticated user data
+ * Extends the base NextAuth user with additional properties
+ */
 interface User {
   id: string;
   name: string;
   email: string;
 }
 
-// Define types for user emails and calendar events
-interface UserEmail {
-  id: string;
-  fromEmail: string;
-  toEmails: string[];
-  ccEmails: string[];
-  bccEmails: string[];
+/**
+ * Cleanup suggestion interface representing AI-generated email cleanup recommendations
+ * 
+ * @property emailId - Unique identifier for the email in our system
+ * @property providerEmailId - Gmail's internal email ID
+ * @property from - Email sender address
+ * @property subject - Email subject line
+ * @property snippet - Brief preview of email content
+ * @property reason - AI-generated explanation for the cleanup suggestion
+ * @property suggestedAction - Recommended action (archive, trash, or delete permanently)
+ */
+interface CleanupSuggestion {
+  emailId: string;
+  providerEmailId: string;
+  from: string;
   subject: string;
   snippet: string;
-  internalDate: string;
-  isRead: boolean;
-  createdAt: string;
-  labelIds: string[];
-}
-
-interface UserCalendarEvent {
-  id: string;
-  summary: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  status: string;
-  createdAt: string;
-}
-
-interface UsersData {
-  users: User[];
-}
-
-function UsersList() {
-  const [data, setData] = useState<UsersData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    // Use absolute URL for endpoint to avoid Invalid URL error
-    const endpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/graphql` : '/api/graphql';
-    request<UsersData>(endpoint, GET_USERS)
-      .then((data) => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch((err: Error) => {
-        setError(err);
-        setLoading(false);
-      });
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-
-  return (
-    <div>
-      <h1>Users</h1>
-      <ul>
-        {data?.users?.map((user) => (
-          <li key={user.id}>{user.name} ({user.email})</li>
-        ))}
-      </ul>
-    </div>
-  );
+  reason: string;
+  suggestedAction: 'archive' | 'trash' | 'delete_permanently';
 }
 
 export default function Home() {
-  const { user, isAuthenticated } = useAuth();
+  // Authentication and user state management
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const { addToast } = useToast();
+  const { showModal } = useModal();
   const userId = (user as User | null)?.id;
-  const router = useRouter();
 
-  // Sync state
+  // Gmail synchronization state
   const [hasSynced, setHasSynced] = useState<boolean | null>(null);
   const [syncing, setSyncing] = useState(false);
 
-  // Fetch sync state on mount
+  // AI cleanup suggestions state management
+  const [cleanupSuggestions, setCleanupSuggestions] = useState<CleanupSuggestion[] | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  /**
+   * Fetch user's Gmail sync state on component mount
+   * Determines whether the user has already connected their Gmail account
+   */
   useEffect(() => {
     if (!isAuthenticated || !userId) {
       setHasSynced(null);
       return;
     }
     fetch('/api/user/sync-state')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch sync state');
+        return res.json();
+      })
       .then(data => setHasSynced(data.hasSynced))
       .catch(() => setHasSynced(false));
   }, [isAuthenticated, userId]);
 
-  // Emails state
-  const [emailsData, setEmailsData] = useState<{ userEmailsByUser: UserEmail[] } | null>(null);
-  const [emailsLoading, setEmailsLoading] = useState(false);
-  const [emailsError, setEmailsError] = useState<Error | null>(null);
-
-  // Calendar events state
-  const [eventsData, setEventsData] = useState<{ userCalendarEventsByUser: UserCalendarEvent[] } | null>(null);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [eventsError, setEventsError] = useState<Error | null>(null);
-
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const initialLoad = useRef(true);
-  const eventsPollingRef = useRef<NodeJS.Timeout | null>(null);
-  const eventsInitialLoad = useRef(true);
-
-  // Helper function to compare emails by id
-  function areEmailsEqual(a: UserEmail[], b: UserEmail[]) {
-    if (a.length !== b.length) return false;
-    const aIds = a.map(e => e.id).sort();
-    const bIds = b.map(e => e.id).sort();
-    return aIds.every((id, i) => id === bIds[i]);
-  }
-
-  // Refactored email fetching logic with seamless polling
-  useEffect(() => {
-    if (!hasSynced) return;
-    let isMounted = true;
-    const fetchEmails = (showLoading = false) => {
-      if (isAuthenticated && userId) {
-        const endpoint = `${window.location.origin}/api/graphql`;
-        const client = new GraphQLClient(endpoint);
-        if (showLoading) setEmailsLoading(true);
-        client.request<{ userEmailsByUser: UserEmail[] }>(
-          `query($userId: ID!) { userEmailsByUser(userId: $userId) { id fromEmail toEmails ccEmails bccEmails subject snippet internalDate isRead createdAt labelIds } }`,
-          { userId }
-        )
-          .then((data) => {
-            if (isMounted) {
-              if (!emailsData || !areEmailsEqual(data.userEmailsByUser, emailsData.userEmailsByUser)) {
-                setEmailsData(data);
-              }
-              if (showLoading) setEmailsLoading(false);
-            }
-          })
-          .catch((err: unknown) => {
-            if (isMounted) {
-              setEmailsError(err instanceof Error ? err : new Error(String(err)));
-              if (showLoading) setEmailsLoading(false);
-            }
-          });
-      }
-    };
-    if (isAuthenticated && userId) {
-      fetchEmails(true); // Initial fetch with loading
-      initialLoad.current = false;
-      pollingRef.current = setInterval(() => fetchEmails(false), 30000); // Poll every 30s, no loading
-    } else {
-      setEmailsData(null);
-      initialLoad.current = true;
-    }
-    return () => {
-      isMounted = false;
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, hasSynced]);
-
-  // Refactored calendar events fetching logic with seamless polling
-  useEffect(() => {
-    if (!hasSynced) return;
-    let isMounted = true;
-    const fetchEvents = (showLoading = false) => {
-      if (isAuthenticated && userId) {
-        const endpoint = `${window.location.origin}/api/graphql`;
-        const client = new GraphQLClient(endpoint);
-        if (showLoading) setEventsLoading(true);
-        client.request<{ userCalendarEventsByUser: UserCalendarEvent[] }>(
-          `query($userId: ID!) { userCalendarEventsByUser(userId: $userId) { id summary description startTime endTime location status createdAt } }`,
-          { userId }
-        )
-          .then((data) => {
-            if (isMounted) {
-              if (!eventsData || data.userCalendarEventsByUser.length !== eventsData.userCalendarEventsByUser.length ||
-                data.userCalendarEventsByUser.some((event, idx) => event.id !== eventsData.userCalendarEventsByUser[idx]?.id)) {
-                setEventsData(data);
-              }
-              if (showLoading) setEventsLoading(false);
-            }
-          })
-          .catch((err: unknown) => {
-            if (isMounted) {
-              setEventsError(err instanceof Error ? err : new Error(String(err)));
-              if (showLoading) setEventsLoading(false);
-            }
-          });
-      }
-    };
-    if (isAuthenticated && userId) {
-      fetchEvents(true); // Initial fetch with loading
-      eventsInitialLoad.current = false;
-      eventsPollingRef.current = setInterval(() => fetchEvents(false), 30000); // Poll every 30s, no loading
-    } else {
-      setEventsData(null);
-      eventsInitialLoad.current = true;
-    }
-    return () => {
-      isMounted = false;
-      if (eventsPollingRef.current) clearInterval(eventsPollingRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, hasSynced]);
-
-  // Sync handler
+  /**
+   * Handle initial Gmail synchronization
+   * Connects user's Gmail account and syncs recent emails
+   */
   const handleFirstSync = async () => {
     setSyncing(true);
     try {
@@ -230,45 +103,69 @@ export default function Home() {
       if (res.ok) {
         await fetch('/api/user/set-synced', { method: 'POST' });
         setHasSynced(true);
+        addToast({
+          type: 'success',
+          title: 'Gmail Connected!',
+          message: 'Your Gmail account has been successfully connected and synced.'
+        });
+      } else {
+        throw new Error('Sync failed');
       }
+    } catch (error) {
+      console.error('Sync error:', error);
+      addToast({
+        type: 'error',
+        title: 'Sync Failed',
+        message: 'Failed to sync. Please try again.'
+      });
     } finally {
       setSyncing(false);
     }
   };
 
-  // Inbox Cleanup Suggestions state
-  interface CleanupSuggestion {
-    emailId: string;
-    providerEmailId: string;
-    from: string;
-    subject: string;
-    snippet: string;
-    reason: string;
-    suggestedAction: 'archive' | 'trash' | 'delete_permanently';
-  }
-  const [cleanupSuggestions, setCleanupSuggestions] = useState<CleanupSuggestion[] | null>(null);
-  const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [cleanupError, setCleanupError] = useState<Error | null>(null);
-  const [generating, setGenerating] = useState(false);
-
-  const loadCleanupSuggestions = () => {
+  const loadCleanupSuggestions = useCallback(() => {
     if (!isAuthenticated || !userId) return;
     setCleanupLoading(true);
     fetch("/api/ai/suggest-cleanups")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error('AUTH_REQUIRED');
+          }
+          throw new Error('Failed to load suggestions');
+        }
+        return res.json();
+      })
       .then((data) => {
         setCleanupSuggestions(data.suggestions || []);
         setCleanupLoading(false);
+        if (data.suggestions && data.suggestions.length > 0) {
+          addToast({
+            type: 'info',
+            title: 'Suggestions Loaded',
+            message: `Found ${data.suggestions.length} cleanup suggestions for your inbox.`
+          });
+        }
       })
-      .catch((err) => {
-        setCleanupError(err instanceof Error ? err : new Error(String(err)));
+      .catch((error) => {
+        console.error('Error loading suggestions:', error);
         setCleanupLoading(false);
+        
+        if (error.message === 'AUTH_REQUIRED') {
+          addToast({
+            type: 'warning',
+            title: 'Authentication Required',
+            message: 'Your Google account access has expired. Please reconnect your Gmail account to continue.',
+            duration: 8000
+          });
+          window.location.href = '/auth/signin';
+        }
+        // Don't show alert for other errors as it might be a network issue
       });
-  };
+  }, [isAuthenticated, userId]);
 
   const generateCleanupSuggestions = async () => {
     setGenerating(true);
-    setCleanupError(null);
     try {
       const response = await fetch("/api/ai/generate-cleanups", {
         method: "POST",
@@ -276,210 +173,396 @@ export default function Home() {
       const data = await response.json();
       
       if (response.ok) {
-        // Reload suggestions after generating new ones
         await loadCleanupSuggestions();
-        alert(`Generated ${data.count} new suggestions!`);
+        addToast({
+          type: 'success',
+          title: 'Suggestions Generated!',
+          message: `Generated ${data.count} new suggestions!`
+        });
       } else {
         throw new Error(data.message || 'Failed to generate suggestions');
       }
-    } catch (err) {
-      setCleanupError(err instanceof Error ? err : new Error(String(err)));
+    } catch (error) {
+      console.error('Error generating suggestions:', error);
+      addToast({
+        type: 'error',
+        title: 'Generation Failed',
+        message: 'Failed to generate suggestions. Please try again.'
+      });
     } finally {
       setGenerating(false);
     }
   };
 
+  const performCleanupAction = async (emailId: string, action: string) => {
+    try {
+      const response = await fetch("/api/ai/execute-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId, action }),
+      });
+      
+      if (response.ok) {
+        // Remove the processed suggestion
+        setCleanupSuggestions(prev => prev?.filter(s => s.emailId !== emailId) || null);
+        const actionText = action === 'archive' ? 'archived' : action === 'trash' ? 'moved to trash' : 'deleted';
+        addToast({
+          type: 'success',
+          title: 'Email Processed!',
+          message: `Email has been ${actionText} successfully.`
+        });
+      } else {
+        const data = await response.json();
+        
+        // Check if this is an OAuth token expiration error
+        if (data.requiresReauth || data.message?.includes('OAuth tokens have expired')) {
+          addToast({
+            type: 'warning',
+            title: 'Authentication Required',
+            message: 'Your Google account access has expired. Please reconnect your Gmail account to continue.',
+            duration: 8000
+          });
+          // Optionally redirect to re-authentication
+          window.location.href = '/auth/signin';
+          return;
+        }
+        
+        throw new Error(data.message || 'Failed to execute cleanup');
+      }
+    } catch (error) {
+      console.error('Error executing cleanup:', error);
+      addToast({
+        type: 'error',
+        title: 'Cleanup Failed',
+        message: 'Failed to execute cleanup. Please try again.'
+      });
+    }
+  };
+
+      const performBulkDelete = async () => {
+    if (!cleanupSuggestions || cleanupSuggestions.length === 0) return;
+    
+    try {
+      // Execute all cleanup actions
+      const promises = cleanupSuggestions.map(suggestion => 
+        fetch("/api/ai/execute-cleanup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            emailId: suggestion.emailId, 
+            action: suggestion.suggestedAction 
+          }),
+        })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      
+      // Check if any requests failed due to OAuth token expiration
+      const oauthErrors = results.filter(result => 
+        result.status === 'rejected' || 
+        (result.status === 'fulfilled' && !result.value.ok)
+      );
+      
+      if (oauthErrors.length > 0) {
+        // Check if any of the errors are OAuth related
+        for (const result of oauthErrors) {
+          if (result.status === 'fulfilled') {
+            try {
+              const data = await result.value.json();
+              if (data.requiresReauth || data.message?.includes('OAuth tokens have expired')) {
+                addToast({
+                  type: 'warning',
+                  title: 'Authentication Required',
+                  message: 'Your Google account access has expired. Please reconnect your Gmail account to continue.',
+                  duration: 8000
+                });
+                window.location.href = '/auth/signin';
+                return;
+              }
+            } catch {
+              // Ignore JSON parsing errors
+            }
+          }
+        }
+      }
+      
+      // Count successful operations
+      const successfulResults = results.filter(result => 
+        result.status === 'fulfilled' && result.value.ok
+      );
+      
+      // Clear all suggestions if any were processed
+      if (successfulResults.length > 0) {
+        setCleanupSuggestions(null);
+        addToast({
+          type: 'success',
+          title: 'Bulk Cleanup Complete!',
+          message: `Successfully processed ${successfulResults.length} emails!`
+        });
+      } else {
+        addToast({
+          type: 'warning',
+          title: 'No Emails Processed',
+          message: 'No emails were processed. Please try again.'
+        });
+      }
+    } catch (error) {
+      console.error('Error executing bulk cleanup:', error);
+      addToast({
+        type: 'error',
+        title: 'Bulk Cleanup Failed',
+        message: 'Error processing emails. Please try again.'
+      });
+    }
+  };
+
+  const handleDeleteAll = () => {
+    if (!cleanupSuggestions || cleanupSuggestions.length === 0) return;
+    
+    // Show beautiful confirmation modal
+    showModal({
+      type: 'danger',
+      title: 'Delete All Emails',
+      message: `Are you sure you want to delete ${cleanupSuggestions.length} emails? This action cannot be undone.`,
+      confirmText: 'Delete All',
+      cancelText: 'Cancel',
+      onConfirm: performBulkDelete
+    });
+  };
+
+  const handleCleanupAction = (emailId: string, action: string) => {
+    const actionText = action === 'archive' ? 'archive' : action === 'trash' ? 'move to trash' : 'delete';
+    
+    showModal({
+      type: 'warning',
+      title: `Confirm ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
+      message: `Are you sure you want to ${actionText} this email?`,
+      confirmText: action === 'archive' ? 'Archive' : action === 'trash' ? 'Move to Trash' : 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: () => performCleanupAction(emailId, action)
+    });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut({ callbackUrl: '/auth/signin' });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Fallback to window.location if signOut fails
+      window.location.href = '/auth/signin';
+    }
+  };
+
   useEffect(() => {
-    loadCleanupSuggestions();
-  }, [isAuthenticated, userId]);
+    if (hasSynced) {
+      loadCleanupSuggestions();
+    }
+  }, [hasSynced, loadCleanupSuggestions]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">EmailCleaner</h1>
+          <p className="text-gray-600 mb-8">AI-powered inbox management</p>
+          <Button onClick={() => window.location.href = '/auth/signin'}>
+            Sign in to get started
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Container>
-      <h1 className="text-3xl font-bold text-[var(--text-main)] mb-6">
-        Welcome to OmniDo
-      </h1>
-      {hasSynced === false && (
-        <button
-          onClick={handleFirstSync}
-          disabled={syncing}
-          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {syncing ? 'Syncing...' : 'Sync Now'}
-        </button>
-      )}
-      {/* Inbox Cleanup Suggestions Widget */}
-      {isAuthenticated && (
-        <div className="mb-6">
-          <Card variant="elevated" padding="md">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">EmailCleaner</h1>
+              <p className="text-gray-600">Keep your inbox clean with AI</p>
+            </div>
+                          <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">{(user as User | null)?.email}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSignOut}
+                >
+                  Sign out
+                </Button>
+              </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* OAuth Expired Banner */}
+        {hasSynced === false && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-yellow-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Gmail Connection Required</h3>
+                <p className="text-sm text-yellow-700 mt-1">Connect your Gmail account to start using EmailCleaner</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Connect Email Section */}
+        {hasSynced === false && (
+          <Card className="mb-8">
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Connect Your Gmail</h2>
+              <p className="text-gray-600 mb-6">Connect your Gmail account to start cleaning your inbox</p>
+              <Button
+                onClick={handleFirstSync}
+                disabled={syncing}
+                size="lg"
+              >
+                {syncing ? 'Connecting...' : 'Connect Gmail'}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Cleanup Suggestions */}
+        {hasSynced && (
+          <div className="space-y-6">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold mb-1">Inbox Cleanup Suggestions</h2>
-                {cleanupLoading ? (
-                  <span>Loading suggestions...</span>
-                ) : cleanupError ? (
-                  <span className="text-red-500">Error loading suggestions</span>
-                ) : (
-                  <span>
-                    {cleanupSuggestions && cleanupSuggestions.length > 0
-                      ? `${cleanupSuggestions.length} emails suggested for cleanup!`
-                      : "No cleanup suggestions right now."}
-                  </span>
-                )}
+                <h2 className="text-xl font-semibold text-gray-900">Cleanup Suggestions</h2>
+                <p className="text-gray-600">AI-powered suggestions to clean your inbox</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-3">
                 <Button
-                  variant="secondary"
-                  size="md"
-                  loading={generating}
+                  variant="outline"
                   onClick={generateCleanupSuggestions}
                   disabled={generating}
                 >
-                  {generating ? 'Generating...' : 'Generate Suggestions'}
+                  {generating ? 'Generating...' : 'Generate New'}
                 </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  disabled={cleanupLoading || !cleanupSuggestions || cleanupSuggestions.length === 0}
-                  onClick={() => router.push("/myreviewqueue")}
-                >
-                  Review Suggestions
-                </Button>
+                {cleanupSuggestions && cleanupSuggestions.length > 0 && (
+                  <>
+                    <Button
+                      variant="danger"
+                      onClick={handleDeleteAll}
+                      className="bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete All ({cleanupSuggestions.length})
+                    </Button>
+                    <Badge variant="primary">{cleanupSuggestions.length} pending</Badge>
+                  </>
+                )}
               </div>
             </div>
-          </Card>
-        </div>
-      )}
-      <UsersList />
 
-      {/* User Emails Section */}
-      {isAuthenticated && userId && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-2">Your Emails</h2>
-          {emailsLoading && <div>Loading emails...</div>}
-          {emailsError && <div>Error loading emails: {emailsError.message}</div>}
-          {emailsData && emailsData.userEmailsByUser && emailsData.userEmailsByUser.length > 0 ? (
-            <ul className="mb-4">
-              {emailsData.userEmailsByUser.map((email: UserEmail) => (
-                <li key={email.id} className="border-b py-2">
-                  <div className="font-semibold">{email.subject || '(No Subject)'}</div>
-                  <div className="text-xs text-gray-500">From: {email.fromEmail}</div>
-                  <div className="text-xs text-gray-500">To: {email.toEmails && email.toEmails.join(', ')}</div>
-                  {email.ccEmails && email.ccEmails.length > 0 && (
-                    <div className="text-xs text-gray-500">CC: {email.ccEmails.join(', ')}</div>
-                  )}
-                  {email.bccEmails && email.bccEmails.length > 0 && (
-                    <div className="text-xs text-gray-500">BCC: {email.bccEmails.join(', ')}</div>
-                  )}
-                  <div className="text-xs text-gray-500">Date: {email.internalDate}</div>
-                  <div className="text-sm">{email.snippet}</div>
-                  {email.labelIds && email.labelIds.length > 0 && (
-                    <div className="text-xs text-gray-400">Labels: {email.labelIds.join(', ')}</div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            !emailsLoading && <div>No emails found.</div>
-          )}
-        </div>
-      )}
+            {/* Loading State */}
+            {cleanupLoading && (
+              <Card>
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading suggestions...</p>
+                </div>
+              </Card>
+            )}
 
-      {/* User Calendar Events Section */}
-      {isAuthenticated && userId && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-2">Your Calendar Events</h2>
-          {eventsLoading && <div>Loading events...</div>}
-          {eventsError && <div>Error loading events: {eventsError.message}</div>}
-          {eventsData && eventsData.userCalendarEventsByUser && eventsData.userCalendarEventsByUser.length > 0 ? (
-            <ul className="mb-4">
-              {eventsData.userCalendarEventsByUser.map((event: UserCalendarEvent) => (
-                <li key={event.id} className="border-b py-2">
-                  <div className="font-semibold">{event.summary || '(No Title)'}</div>
-                  <div className="text-xs text-gray-500">Start: {event.startTime}</div>
-                  <div className="text-xs text-gray-500">End: {event.endTime}</div>
-                  <div className="text-sm">{event.description}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            !eventsLoading && <div>No events found.</div>
-          )}
-        </div>
-      )}
+            {/* Suggestions List */}
+            {!cleanupLoading && cleanupSuggestions && cleanupSuggestions.length > 0 && (
+              <div className="space-y-4">
+                {cleanupSuggestions.map((suggestion) => (
+                  <Card key={suggestion.emailId} className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-1 truncate">
+                          {suggestion.subject || '(No Subject)'}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2">From: {suggestion.from}</p>
+                        <p className="text-sm text-gray-500 mb-3 line-clamp-2 overflow-hidden">
+                          {suggestion.snippet}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Reason: {suggestion.reason}
+                        </p>
+                      </div>
+                      <div className="ml-4 flex flex-col gap-3">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleCleanupAction(suggestion.emailId, suggestion.suggestedAction)}
+                            className="min-w-[80px] bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setCleanupSuggestions(prev => prev?.filter(s => s.emailId !== suggestion.emailId) || null);
+                            }}
+                            className="min-w-[80px] text-green-600 border-green-300 hover:bg-green-500 hover:border-green-500 hover:text-white hover:shadow-md transition-all duration-200"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Keep
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Dashboard Cards */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-[var(--text-main)]">Tasks Pending</h3>
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
+            {/* Empty State */}
+            {!cleanupLoading && (!cleanupSuggestions || cleanupSuggestions.length === 0) && (
+              <Card>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No cleanup suggestions</h3>
+                  <p className="text-gray-600 mb-4">Your inbox looks clean! Generate new suggestions to find more emails to clean up.</p>
+                  <Button onClick={generateCleanupSuggestions} disabled={generating}>
+                    {generating ? 'Generating...' : 'Generate Suggestions'}
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
-          <p className="text-3xl font-bold text-[var(--text-main)]">12</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-2">Items in your review queue</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-[var(--text-main)]">AI Insights</h3>
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-[var(--text-main)]">8</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-2">New insights generated</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-[var(--text-main)]">Knowledge Base</h3>
-            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-[var(--text-main)]">156</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-2">Articles in your knowledge base</p>
-        </div>
+        )}
       </div>
-
-      {/* Recent Activity Section */}
-      <div className="mt-8 bg-white rounded-lg shadow-sm border border-[var(--border)]">
-        <div className="p-6 border-b border-[var(--border)]">
-          <h2 className="text-xl font-semibold text-[var(--text-main)]">Recent Activity</h2>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm text-[var(--text-main)]">New task added to review queue</p>
-                <p className="text-xs text-[var(--text-secondary)]">2 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm text-[var(--text-main)]">AI generated insights for project Alpha</p>
-                <p className="text-xs text-[var(--text-secondary)]">15 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm text-[var(--text-main)]">Knowledge base article updated</p>
-                <p className="text-xs text-[var(--text-secondary)]">1 hour ago</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Container>
+    </div>
   );
 }

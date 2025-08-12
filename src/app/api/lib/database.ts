@@ -1,6 +1,28 @@
+/**
+ * Database Connection and Query Utilities
+ * 
+ * This module provides a centralized database connection pool and utility functions
+ * for executing database queries in the EmailCleaner application.
+ * 
+ * Features:
+ * - Connection pooling for efficient database connections
+ * - Type-safe query execution with TypeScript generics
+ * - Comprehensive error handling and logging
+ * - Environment-based configuration
+ * - Connection testing utilities
+ * 
+ * @author Amin Momin
+ * @version 1.0.0
+ */
+
 import mysql from 'mysql2/promise';
 
-// Database configuration
+/**
+ * Database configuration object
+ * 
+ * Configures the MySQL connection pool with environment variables
+ * and sensible defaults for development and production environments.
+ */
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -12,14 +34,26 @@ const dbConfig = {
   queueLimit: 0,
 };
 
-// Create connection pool
+/**
+ * MySQL connection pool
+ * 
+ * A connection pool that manages multiple database connections efficiently,
+ * reducing the overhead of creating new connections for each query.
+ */
 const pool = mysql.createPool(dbConfig);
 
-// Test database connection
+/**
+ * Test database connection
+ * 
+ * Verifies that the database connection pool is working correctly
+ * by attempting to acquire and release a connection.
+ * 
+ * @returns {Promise<boolean>} True if connection is successful, false otherwise
+ */
 export async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+  
     connection.release();
     return true;
   } catch (error) {
@@ -28,7 +62,18 @@ export async function testConnection() {
   }
 }
 
-// Execute a query with parameters
+/**
+ * Execute a query and return multiple rows
+ * 
+ * Executes a SQL query with optional parameters and returns an array of results.
+ * This function is typically used for SELECT queries that return multiple rows.
+ * 
+ * @template T - TypeScript type for the expected result structure
+ * @param {string} query - SQL query string
+ * @param {unknown[]} params - Query parameters to prevent SQL injection
+ * @returns {Promise<T[]>} Array of query results
+ * @throws {Error} When the query execution fails
+ */
 export async function executeQuery<T = unknown>(
   query: string,
   params: unknown[] = []
@@ -42,7 +87,19 @@ export async function executeQuery<T = unknown>(
   }
 }
 
-// Execute a single query (for INSERT, UPDATE, DELETE)
+/**
+ * Execute a query and return a single result
+ * 
+ * Executes a SQL query with optional parameters and returns a single result.
+ * This function is typically used for INSERT, UPDATE, DELETE operations
+ * or SELECT queries that return a single row.
+ * 
+ * @template T - TypeScript type for the expected result structure
+ * @param {string} query - SQL query string
+ * @param {unknown[]} params - Query parameters to prevent SQL injection
+ * @returns {Promise<T>} Single query result
+ * @throws {Error} When the query execution fails
+ */
 export async function executeSingleQuery<T = unknown>(
   query: string,
   params: unknown[] = []
@@ -56,7 +113,19 @@ export async function executeSingleQuery<T = unknown>(
   }
 }
 
-// Get a single row
+/**
+ * Get a single row from a query result
+ * 
+ * Executes a SQL query and returns the first row from the result set.
+ * If no rows are found, returns null. This is useful for queries that
+ * should return exactly one row (e.g., user lookup by ID).
+ * 
+ * @template T - TypeScript type for the expected result structure
+ * @param {string} query - SQL query string
+ * @param {unknown[]} params - Query parameters to prevent SQL injection
+ * @returns {Promise<T | null>} Single row result or null if not found
+ * @throws {Error} When the query execution fails
+ */
 export async function getSingleRow<T = unknown>(
   query: string,
   params: unknown[] = []

@@ -1,14 +1,27 @@
 {
-  "name": "omnido",
-  "version": "0.1.0",
+  "name": "emailcleaner",
+  "version": "1.0.0",
+  "description": "AI-powered Gmail inbox management application that intelligently cleans and organizes emails using Google's Gemini AI",
+  "keywords": [
+    "email",
+    "gmail",
+    "ai",
+    "cleanup",
+    "inbox",
+    "automation",
+    "nextjs",
+    "typescript",
+    "google-ai",
+    "oauth"
+  ],
+  "author": "Amin Momin <aminmomin2006@gmail.com>",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "concurrently \"next dev --turbopack\" \"mesh dev\"",
     "build": "next build && tsc",
     "start": "next start",
-    "lint": "next lint",
-    "init-db": "tsc && node scripts/init-db.js",
-    "check-db": "node scripts/check-db.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

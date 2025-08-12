@@ -19,9 +19,7 @@ export const resolvers = {
       return getUserFromContext(context);
     },
     userEmailsByUser: async (_root: unknown, { userId }: { userId: string }) => {
-      console.log('userEmailsByUser called with userId:', userId);
       const emails: UserEmail[] = await UserEmailService.getUserEmailsByUserId(userId);
-      console.log('Emails fetched:', emails);
       // Helper to recursively parse stringified arrays and return a flat array of clean strings
       const toFlatStringArray = (val: unknown): string[] => {
         if (!val) return [];
@@ -43,32 +41,10 @@ export const resolvers = {
         return [String(val).replace(/"/g, '').trim()];
       };
       const result = emails.map((email: UserEmail) => {
-        // Log the type and value of each field before parsing
-        console.log('typeof to_emails:', typeof email.to_emails, 'value:', email.to_emails);
-        console.log('typeof cc_emails:', typeof email.cc_emails, 'value:', email.cc_emails);
-        console.log('typeof bcc_emails:', typeof email.bcc_emails, 'value:', email.bcc_emails);
-        console.log('typeof label_ids:', typeof email.label_ids, 'value:', email.label_ids);
         const toEmailsParsed = toFlatStringArray(email.to_emails);
         const ccEmailsParsed = toFlatStringArray(email.cc_emails);
         const bccEmailsParsed = toFlatStringArray(email.bcc_emails);
         const labelIdsParsed = toFlatStringArray(email.label_ids);
-        // Log the final value
-        console.log('FINAL toEmails:', toEmailsParsed);
-        console.log('FINAL labelIds:', labelIdsParsed);
-
-        // Debug: Check for nested arrays
-        if (
-          Array.isArray(toEmailsParsed) &&
-          toEmailsParsed.some((v) => Array.isArray(v))
-        ) {
-          console.error('NESTED ARRAY DETECTED in toEmailsParsed:', toEmailsParsed, 'raw:', email.to_emails);
-        }
-        if (
-          Array.isArray(labelIdsParsed) &&
-          labelIdsParsed.some((v) => Array.isArray(v))
-        ) {
-          console.error('NESTED ARRAY DETECTED in labelIdsParsed:', labelIdsParsed, 'raw:', email.label_ids);
-        }
 
         return {
           id: email.id,
@@ -84,14 +60,10 @@ export const resolvers = {
           labelIds: labelIdsParsed,
         };
       });
-      // Log the final result before returning
-      console.log('Resulting emails (about to return):', JSON.stringify(result, null, 2));
       return result;
     },
     userCalendarEventsByUser: async (_root: unknown, { userId }: { userId: string }) => {
-      console.log('userCalendarEventsByUser called with userId:', userId);
       const events: UserCalendarEvent[] = await UserCalendarEventService.getUserCalendarEventsByUserId(userId);
-      console.log('Events fetched:', events);
       return events.map((event: UserCalendarEvent) => ({
         id: event.id,
         summary: event.summary,

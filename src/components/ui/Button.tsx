@@ -29,7 +29,7 @@ const Button: React.FC<ButtonProps> = ({
     primary: 'bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:bg-[var(--primary)]/80',
     secondary: 'bg-[var(--gray-light)] text-[var(--primary)] border border-[var(--border)] hover:bg-[var(--gray-light)]/90 active:bg-[var(--gray-light)]/80',
     accent: 'bg-[var(--accent)] text-[var(--primary)] hover:bg-[var(--accent)]/90 active:bg-[var(--accent)]/80',
-    outline: 'bg-gray-light text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white active:bg-[var(--primary)]/80 active:text-white',
+    outline: 'bg-[var(--gray-light)] text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white active:bg-[var(--primary)]/80 active:text-white',
     transparent: 'bg-transparent text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-transparent active:bg-transparent',
     ghost: 'bg-transparent text-[var(--primary)] hover:bg-[var(--accent)] hover:text-[var(--primary)]/90 active:bg-[var(--accent)]/80 active:text-[var(--primary)]',
     danger: 'bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 active:bg-[var(--danger)]/80',

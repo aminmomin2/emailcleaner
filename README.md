@@ -1,77 +1,250 @@
-# AI Personal Assistant – Full-Stack Architecture (Updated)
+# 🧹 EmailCleaner - AI-Powered Inbox Management
 
-## GraphQL API
+A sophisticated web application that uses artificial intelligence to intelligently clean and organize your Gmail inbox. Built with modern web technologies and designed for optimal user experience.
 
-- The project now uses **GraphQL Mesh** as the unified GraphQL gateway.
-- The API route `/api/graphql` proxies requests to the Mesh server (default: `http://localhost:4000/graphql`).
-- Mesh is configured via `.meshrc.yaml` (see root directory).
+## ✨ Features
 
-## Running Mesh
+### 🤖 AI-Powered Email Analysis
+- **Intelligent Email Classification**: Uses Google's Gemini AI to analyze email content and suggest cleanup actions
+- **Smart Cleanup Suggestions**: Automatically identifies emails that can be archived, trashed, or deleted
+- **Context-Aware Recommendations**: Considers email content, sender patterns, and user behavior
 
-1. Install dependencies:
-   ```bash
-   npm install @graphql-mesh/cli @graphql-mesh/runtime @graphql-mesh/config graphql-request
-   ```
-2. Start Mesh in development:
-   ```bash
-   npx mesh dev
-   ```
-   This will serve the GraphQL endpoint at `http://localhost:4000/graphql` and GraphiQL IDE at the same URL.
+### 🔐 Secure Authentication
+- **OAuth 2.0 Integration**: Secure Google authentication with proper token management
+- **Session Management**: Persistent sessions with automatic token refresh
+- **Privacy-First**: Minimal data collection, focusing only on email metadata
 
-## Frontend
+### 📧 Gmail Integration
+- **Real-time Sync**: Seamless integration with Gmail API
+- **Bulk Operations**: Process multiple emails simultaneously
+- **Safe Operations**: All actions are reversible and respect Gmail's safety features
 
-- Apollo Client has been removed.
-- Use [`graphql-request`](https://github.com/jasonkuhrt/graphql-request) for all GraphQL queries/mutations.
-- See `src/app/page.tsx` for an example of using `graphql-request`.
+### 🎨 Modern User Interface
+- **Responsive Design**: Works perfectly on desktop and mobile devices
+- **Intuitive UX**: Clean, modern interface with clear action buttons
+- **Real-time Feedback**: Toast notifications and loading states for better user experience
 
-## Development Tools
+## 🛠️ Tech Stack
 
-- Use the [GraphiQL IDE](https://github.com/graphql/graphiql) at `http://localhost:4000/graphql` for query testing and schema exploration.
+### Frontend
+- **Next.js 15** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Hooks** - Modern state management
 
-## Configuration
+### Backend & APIs
+- **Next.js API Routes** - Serverless API endpoints
+- **Google APIs** - Gmail and Calendar integration
+- **GraphQL Mesh** - Unified API layer
+- **MySQL** - Relational database
 
-- See `.meshrc.yaml` for Mesh source configuration (currently set up for MySQL).
-- Update credentials and sources as needed for your environment.
+### Authentication & Security
+- **NextAuth.js** - Authentication framework
+- **OAuth 2.0** - Google authentication
+- **JWT Tokens** - Secure session management
+- **bcrypt** - Password hashing
 
-## Migration Notes
+### AI & Machine Learning
+- **Google Gemini AI** - Email content analysis
+- **Natural Language Processing** - Email classification
+- **Contextual Analysis** - Smart recommendation engine
 
-- All Apollo Client/Server code has been removed.
-- The API route now acts as a proxy to Mesh.
-- Update your environment variables as needed (e.g., `MESH_URL`).
+### Development Tools
+- **ESLint** - Code linting
+- **TypeScript** - Static type checking
+- **Turbopack** - Fast development builds
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 🏗️ Architecture
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Project Structure
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   │   ├── ai/           # AI-powered endpoints
+│   │   ├── auth/         # Authentication routes
+│   │   └── lib/          # Core business logic
+│   ├── auth/             # Authentication pages
+│   └── globals.css       # Global styles
+├── components/           # Reusable UI components
+├── hooks/               # Custom React hooks
+└── types/               # TypeScript type definitions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Key Components
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+#### 1. **Authentication System**
+- Custom NextAuth adapter for MySQL
+- OAuth token management with automatic refresh
+- Secure session handling
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+#### 2. **AI Service Layer**
+- Gemini AI integration for email analysis
+- Intelligent cleanup suggestion generation
+- Context-aware email processing
 
-## Learn More
+#### 3. **Gmail Integration**
+- Real-time email synchronization
+- Safe email operations (archive, trash, delete)
+- Bulk processing capabilities
 
-To learn more about Next.js, take a look at the following resources:
+#### 4. **Database Layer**
+- MySQL with GraphQL Mesh
+- Optimized queries for email data
+- Proper indexing and relationships
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🚀 Getting Started
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Prerequisites
+- Node.js 18+ 
+- MySQL 8.0+
+- Google Cloud Platform account
+- Google OAuth credentials
 
-## Deploy on Vercel
+### Installation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/aminmomin2/emailcleaner.git
+   cd emailcleaner
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Configure the following variables:
+   ```env
+   # Database
+   DATABASE_URL=mysql://user:password@localhost:3306/emailcleaner
+   
+   # Google OAuth
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   
+   # NextAuth
+   NEXTAUTH_SECRET=your_nextauth_secret
+   NEXTAUTH_URL=http://localhost:3000
+   
+   # Google AI
+   GOOGLE_AI_API_KEY=your_gemini_api_key
+   ```
+
+4. **Set up the database**
+   ```bash
+   # Run the schema file
+   mysql -u root -p emailcleaner < src/app/api/model/schema.sql
+   ```
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+### Google Cloud Setup
+
+1. **Create a Google Cloud Project**
+2. **Enable Gmail API and Google Calendar API**
+3. **Create OAuth 2.0 credentials**
+4. **Configure authorized redirect URIs**
+5. **Set up Google AI API key**
+
+## 📊 Database Schema
+
+### Core Tables
+- `users` - User accounts and authentication
+- `user_emails` - Email metadata and content
+- `user_calendar_events` - Calendar event data
+- `user_credentials` - OAuth token storage
+
+### Key Relationships
+- Users have many emails and calendar events
+- Emails are linked to Gmail provider IDs
+- Calendar events are linked to Google Calendar IDs
+
+## 🔧 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `GET /api/auth/[...nextauth]` - NextAuth endpoints
+
+### Email Management
+- `POST /api/sync` - Initial Gmail sync
+- `GET /api/user/sync-state` - Check sync status
+- `POST /api/user/set-synced` - Mark user as synced
+
+### AI Operations
+- `GET /api/ai/suggest-cleanups` - Get cleanup suggestions
+- `POST /api/ai/generate-cleanups` - Generate new suggestions
+- `POST /api/ai/execute-cleanup` - Execute cleanup actions
+
+## 🧪 Testing
+
+```bash
+# Run linting
+npm run lint
+
+# Type checking
+npm run build
+
+# Development server
+npm run dev
+```
+
+## 🔒 Security Features
+
+- **OAuth 2.0** - Secure Google authentication
+- **Token Encryption** - Encrypted storage of OAuth tokens
+- **Session Management** - Secure session handling
+- **Input Validation** - All inputs are validated and sanitized
+- **Rate Limiting** - API rate limiting to prevent abuse
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables
+3. Deploy automatically on push
+
+### Self-Hosted
+1. Build the application: `npm run build`
+2. Start the production server: `npm start`
+3. Configure reverse proxy (nginx/Apache)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add feature'`
+4. Push to the branch: `git push origin feature-name`
+5. Submit a pull request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Google APIs** - For Gmail and Calendar integration
+- **NextAuth.js** - For authentication framework
+- **Tailwind CSS** - For styling utilities
+- **Next.js Team** - For the amazing React framework
+
+## 📞 Contact
+
+- **GitHub**: [@aminmomin2](https://github.com/aminmomin2)
+- **LinkedIn**: [Amin Momin](https://www.linkedin.com/in/aminmomin1/)
+- **Email**: aminmomin2006@gmail.com
+
+---
+
+**Built with ❤️ using Next.js, TypeScript, and Google AI**

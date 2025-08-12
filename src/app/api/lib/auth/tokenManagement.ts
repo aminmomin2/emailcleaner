@@ -32,7 +32,21 @@ export async function getAuthenticatedGoogleClient(userId: string) {
   });
 
   // Ensure the access token is valid and refresh if needed
-  await oauth2Client.getAccessToken();
+  try {
+    await oauth2Client.getAccessToken();
+  } catch (error) {
+    // If we get an invalid_grant error, the refresh token is expired/invalid
+    if (error instanceof Error && error.message.includes('invalid_grant')) {
+      // Clear the invalid tokens from the database
+      await AccountService.updateAccount(googleAccount.id, {
+        refresh_token: null,
+        access_token: null,
+        expires_at: null,
+      });
+      throw new Error('OAuth tokens have expired. Please re-authenticate with Google.');
+    }
+    throw error;
+  }
   const credentials = oauth2Client.credentials;
 
   // If a new refresh_token is issued, update the DB

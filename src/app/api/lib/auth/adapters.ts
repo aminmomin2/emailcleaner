@@ -6,7 +6,6 @@ import { CredentialsService } from "../services/credentialsService"
 import { toMySQLDateTime } from "../utils/datetime"
 
 export function CustomAdapter(): Adapter {
-  console.log("🔵 [ADAPTER] CustomAdapter initialized");
   return {
     async createUser(user: Omit<AdapterUser, "id">) {
       try {
@@ -186,22 +185,12 @@ export function CustomAdapter(): Adapter {
     },
 
     async createSession(session: { sessionToken: string; userId: string; expires: Date }) {
-      console.log("🔵 [ADAPTER] createSession method called!");
       try {
-        console.log("🔵 [ADAPTER] createSession called with:", {
-          sessionToken: session.sessionToken,
-          userId: session.userId,
-          expires: session.expires,
-          expiresMySQL: toMySQLDateTime(session.expires)
-        })
-        
         const createdSession = await SessionService.createSession({
           session_token: session.sessionToken,
           user_id: session.userId,
           expires: toMySQLDateTime(session.expires),
         })
-        
-        console.log("✅ [ADAPTER] Session created successfully:", createdSession)
         
         return {
           sessionToken: createdSession.session_token,
@@ -215,14 +204,11 @@ export function CustomAdapter(): Adapter {
     },
 
     async getSessionAndUser(sessionToken: string) {
-      console.log("🔵 [ADAPTER] getSessionAndUser called with token:", sessionToken.substring(0, 20) + "...");
       try {
         const session = await SessionService.getSessionByToken(sessionToken)
-        console.log("🔵 [ADAPTER] getSessionAndUser - session found:", !!session);
         if (!session) return null
         
         const user = await UserService.getUserById(session.user_id)
-        console.log("🔵 [ADAPTER] getSessionAndUser - user found:", !!user);
         if (!user) return null
         
         return {

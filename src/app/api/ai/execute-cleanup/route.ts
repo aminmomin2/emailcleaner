@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
   if (!emailId || !action) {
     return NextResponse.json({ message: 'Missing emailId or action' }, { status: 400 });
   }
-  // Fetch providerEmailId from DB
-  const userEmail = await executeQuery<{ providerEmailId: string }>(
-    'SELECT providerEmailId FROM user_emails WHERE id = ? AND user_id = ? LIMIT 1',
+  // Fetch provider_email_id from DB
+  const userEmail = await executeQuery<{ provider_email_id: string }>(
+    'SELECT provider_email_id FROM user_emails WHERE id = ? AND user_id = ? LIMIT 1',
     [emailId, session.user.id]
   );
   if (!userEmail || userEmail.length === 0) {
@@ -26,13 +26,13 @@ export async function POST(req: NextRequest) {
   try {
     switch (action) {
       case 'archive':
-        success = await archiveEmail(session.user.id, userEmail[0].providerEmailId);
+        success = await archiveEmail(session.user.id, userEmail[0].provider_email_id);
         break;
       case 'trash':
-        success = await trashEmail(session.user.id, userEmail[0].providerEmailId);
+        success = await trashEmail(session.user.id, userEmail[0].provider_email_id);
         break;
       case 'delete_permanently':
-        success = await deletePermanently(session.user.id, userEmail[0].providerEmailId);
+        success = await deletePermanently(session.user.id, userEmail[0].provider_email_id);
         break;
       default:
         return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
@@ -57,6 +57,16 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error(`Error executing cleanup action '${action}' for email ${emailId}:`, error);
+    
+    // Check if this is an OAuth token error
+    if (error instanceof Error && (error.message.includes('invalid_grant') || error.message.includes('OAuth tokens have expired'))) {
+      return NextResponse.json({ 
+        message: 'Your Google account access has expired. Please reconnect your Gmail account.',
+        error: 'OAUTH_TOKEN_EXPIRED',
+        requiresReauth: true
+      }, { status: 401 });
+    }
+    
     return NextResponse.json({ message: 'Failed to execute cleanup action.', error: (error as Error).message }, { status: 500 });
   }
 } 

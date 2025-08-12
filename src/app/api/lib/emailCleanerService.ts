@@ -94,13 +94,11 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
     console.error('Failed to initialize Gmail API client:', err);
   }
 
-  // Add delay between API calls to respect rate limits
-  const addDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   
   for (const email of recentEmails) {
     // Skip emails that don't have a provider_email_id (required for cleanup suggestions)
     if (!email.providerEmailId) {
-      console.log(`[DEBUG] Skipping email ${email.id} - no provider_email_id`);
       continue;
     }
     
@@ -165,7 +163,6 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
       ].includes(classificationText)) {
               // Validate required fields before creating suggestion
       if (!email.id || !email.providerEmailId) {
-        console.log(`[DEBUG] Skipping suggestion for email ${email.id} - missing required fields`);
         continue;
       }
       
@@ -182,8 +179,7 @@ export async function analyzeEmailsForCleanup(userId: string): Promise<CleanupSu
       await storeSuggestion(userId, suggestion);
       }
       
-      // Add delay between API calls to respect rate limits (15 requests per minute = 4 seconds between calls)
-      await addDelay(4000);
+      // Removed delay for faster processing
     } catch (llmError) {
       console.error(`LLM classification failed for email ${email.id}:`, llmError);
     }

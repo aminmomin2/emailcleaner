@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CredentialsService } from '../../lib/services/credentialsService'
-// import { EmailService } from '../../lib/services/emailService'
-// import { VerificationTokenService } from '../../lib/services/verificationTokenService'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,18 +24,7 @@ export async function POST(request: NextRequest) {
     // Register the user
     const user = await CredentialsService.registerUser(email, password, name)
 
-    // Email verification commented out for now
-    // const token = crypto.randomUUID()
-    // const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
-    // await VerificationTokenService.createToken({
-    //   identifier: email,
-    //   token,
-    //   expires: expires.toISOString(),
-    // })
-
-    // const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}`
-    // await EmailService.sendVerificationEmail(email, verificationUrl)
 
     return NextResponse.json(
       { 

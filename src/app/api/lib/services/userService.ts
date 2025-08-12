@@ -41,17 +41,13 @@ export class UserService {
   // Get user by ID
   static async getUserById(id: string): Promise<User | null> {
     try {
-      console.log('getUserById called with id:', id);
       const query = `
         SELECT id, name, email, email_verified, image, created_at, updated_at, has_synced
         FROM users
         WHERE id = ?
       `;
-      console.log('getUserById query:', query);
-      console.log('getUserById params:', [id]);
       
       const result = await getSingleRow<User>(query, [id]);
-      console.log('getUserById result:', result);
       
       return result;
     } catch (error) {
@@ -75,15 +71,11 @@ export class UserService {
     try {
       // Generate a UUID for the user ID
       const userId = crypto.randomUUID();
-      console.log('Generated userId:', userId);
-      console.log('Input:', input);
       
       const query = `
         INSERT INTO users (id, name, email, email_verified, image)
         VALUES (?, ?, ?, ?, ?)
       `;
-      
-      console.log('Executing query with params:', [userId, input.name || null, input.email, input.email_verified || null, input.image || null]);
       
       const result = await executeSingleQuery(query, [
         userId,
@@ -93,11 +85,8 @@ export class UserService {
         input.image || null,
       ]);
 
-      console.log('Query result:', result);
-
       // Get the created user
       const createdUser = await this.getUserById(userId);
-      console.log('Created user:', createdUser);
       
       if (!createdUser) {
         throw new Error('Failed to create user - user not found after creation');
